@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Role for cross-account access with full permissions for deployment
+
+Parameters:
+  EntAwsAccountArn:
+    Type: String
+    Default: REPLACE_WITH_ENT_AWS_ACCOUNT_ARN
+    Description: The AWS ARN that can assume this role
+
+  RoleStsExternalId:
+    Type: String
+    Default: REPLACE_WITH_YOUR_EXTERNAL_ID
+    Description: STS ExternalId condition value to use with the role
+
+  RoleName:
+    Type: String
+    Default: HomeProdAssumeAdmin
+    Description: IAM role name
+
+  RolePath:
+    Type: String
+    Default: /
+    Description: Path of IAM role
+
+  RoleDescription:
+    Type: String
+    Default: Role that allows HomeDev SSO to assume AdministratorAccess role
+    Description: IAM Role description
+
+Conditions:
+  HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
+
+Resources:
+  EntDeployPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: EntAdditionalPermissions
+      Description: Custom policy for permissions in addition to the SecurityAudit policy
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - backup:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - sts:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - eks:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - iam:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ecr:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - secretsmanager:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - rds:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - cloudwatch:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - logs:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - aoss:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - elasticache:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - sns:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ec2:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - route53:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - route53domains:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - acm:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - sqs:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - resource-groups:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - tag:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - bedrock:*
+            Resource: '*'
+
+  EntDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Path: !Ref RolePath
+      Description: !Ref RoleDescription
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref EntAwsAccountArn
+            Action: sts:AssumeRole
+            Condition: !If
+              - HasExternalId
+              - StringEquals:
+                  sts:ExternalId: !Ref RoleStsExternalId
+              - !Ref AWS::NoValue
+      ManagedPolicyArns:
+        - !Ref EntDeployPolicy
+
+Outputs:
+  RoleArn:
+    Description: The ARN of the role
+    Value: !GetAtt EntDeployRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-RoleArn
+
+  RoleName:
+    Description: The name of the role
+    Value: !Ref EntDeployRole
+    Export:
+      Name: !Sub ${AWS::StackName}-RoleName
+
+  PolicyArn:
+    Description: The ARN of the policy
+    Value: !Ref EntDeployPolicy
+    Export:
+      Name: !Sub ${AWS::StackName}-PolicyArn

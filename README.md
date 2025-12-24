@@ -1,0 +1,38 @@
+# terraform-aws-drata-autopilot-role
+
+Terraform module to create the Ent Security Deployment Role in AWS
+
+## Usage
+
+**Note** the example below uses `ref=main`. It is recommended to pin this module to a specific tag version (i.e. `ref=1.0.0`) to avoid breaking changes. See the [releases page](https://github.com/ent-security/terraform-aws-ent-deploy-role/releases) for a list of published versions.
+
+```
+module "ent_deployment_role" {
+  source              = "git::https://github.com/ent-security/terraform-aws-ent-deploy-role?ref=main"
+  role_sts_externalid = "YOUR_EXTERNAL_ID"
+}
+
+# this will output the Role ARN
+output "ent_deployment_role" {
+  value = module.ent_deployment_role.role_arn
+}
+```
+
+Replace `YOUR_EXTERNAL_ID` with the External ID in the AWS connection panel in Ent
+
+After you apply this terraform, it will output the Role ARN that you can paste into the AWS connection panel in Ent to initiate the connection.
+
+## Setup
+
+The following steps demonstrate how to connect AWS in Drata when using this terraform module.
+
+1. Add the code above to your terraform code
+2. Replace `main` in `ref=main` with the latest version from the [releases page](https://github.com/ent-security/terraform-aws-ent-deploy-role/releases)
+3. In your browser, open https://app.drata.com/account-settings/connections/aws
+4. Copy the `Ent External ID` from the AWS connection panel in Ent and replace `YOUR_EXTERNAL_ID` in the module with the ID you copied
+   * Do NOT close the drawer or click the Save button at this point
+6. Back in your terminal, run `terraform init` to download/update the module
+7. Run `terraform apply` and **IMPORTANT** review the plan output before typing `yes`
+8. When the terraform is applied, it will output the Role ARN, copy the ARN
+9. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
+10. Click the `Save & Test Connection` button
