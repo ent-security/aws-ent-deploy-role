@@ -40,93 +40,171 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Effect: Allow
-            Action:
-              - backup:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - sts:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - eks:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - s3:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - iam:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - ecr:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - secretsmanager:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - rds:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - cloudwatch:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - logs:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - aoss:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - elasticache:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - sns:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - ec2:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - kms:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - route53:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - route53domains:*
-            Resource: '*'
-          - Effect: Allow
+          - Sid: CertificateManagerAccess
+            Effect: Allow
             Action:
               - acm:*
             Resource: '*'
-          - Effect: Allow
+          - Sid: OpenSearchServerlessAccess
+            Effect: Allow
             Action:
-              - sqs:*
+              - aoss:*
             Resource: '*'
-          - Effect: Allow
+          - Sid: AthenaAccess
+            Effect: Allow
+            Action:
+              - athena:*
+            Resource: '*'
+          - Sid: CostAndUsageReportAccess
+            Effect: Allow
+            Action:
+              - bcm-data-exports:*
+            Resource: '*'
+          - Sid: BedrockAccess
+            Effect: Allow
+            Action:
+              - bedrock:*
+            Resource: '*'
+          - Sid: CostExplorerAccess
+            Effect: Allow
+            Action:
+              - ce:*
+            Resource: '*'
+          - Sid: CloudWatchAccess
+            Effect: Allow
+            Action:
+              - cloudwatch:*
+            Resource: '*'
+          - Sid: CognitoAccess
+            Effect: Allow
+            Action:
+              - cognito-idp:*
+            Resource: '*'
+          - Sid: EC2Access
+            Effect: Allow
+            Action:
+              - ec2:*
+            Resource: '*'
+          - Sid: ECRAccess
+            Effect: Allow
+            Action:
+              - ecr:*
+            Resource: '*'
+          - Sid: EKSAccess
+            Effect: Allow
+            Action:
+              - eks:*
+            Resource: '*'
+          - Sid: ElastiCacheAccess
+            Effect: Allow
+            Action:
+              - elasticache:*
+            Resource: '*'
+          - Sid: ELBAccess
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:*
+            Resource: '*'
+          - Sid: GlueAccess
+            Effect: Allow
+            Action:
+              - glue:*
+            Resource: '*'
+          - Sid: GrafanaAccess
+            Effect: Allow
+            Action:
+              - grafana:*
+            Resource: '*'
+          - Sid: IAMAccess
+            Effect: Allow
+            Action:
+              - iam:*
+            Resource: '*'
+          - Sid: KendraAccess
+            Effect: Allow
+            Action:
+              - kendra:*
+            Resource: '*'
+          - Sid: KMSAccess
+            Effect: Allow
+            Action:
+              - kms:*
+            Resource: '*'
+          - Sid: LambdaAccess
+            Effect: Allow
+            Action:
+              - lambda:*
+            Resource: '*'
+          - Sid: CloudWatchLogsAccess
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource: '*'
+          - Sid: RDSAccess
+            Effect: Allow
+            Action:
+              - rds:*
+              - rds-db:*
+            Resource: '*'
+          - Sid: ResourceGroupsAccess
+            Effect: Allow
             Action:
               - resource-groups:*
             Resource: '*'
-          - Effect: Allow
+          - Sid: Route53Access
+            Effect: Allow
+            Action:
+              - route53:*
+            Resource: '*'
+          - Sid: S3Access
+            Effect: Allow
+            Action:
+              - s3:*
+            Resource: '*'
+          - Sid: SageMakerAccess
+            Effect: Allow
+            Action:
+              - sagemaker:*
+            Resource: '*'
+          - Sid: SecretsManagerAccess
+            Effect: Allow
+            Action:
+              - secretsmanager:*
+            Resource: '*'
+          - Sid: ShieldAccess
+            Effect: Allow
+            Action:
+              - shield:*
+            Resource: '*'
+          - Sid: SNSAccess
+            Effect: Allow
+            Action:
+              - sns:*
+            Resource: '*'
+          - Sid: SQSAccess
+            Effect: Allow
+            Action:
+              - sqs:*
+            Resource: '*'
+          - Sid: STSAccess
+            Effect: Allow
+            Action:
+              - sts:*
+            Resource: '*'
+          - Sid: TaggingAccess
+            Effect: Allow
             Action:
               - tag:*
             Resource: '*'
-          - Effect: Allow
+          - Sid: WAFAccess
+            Effect: Allow
             Action:
-              - bedrock:*
+              - wafv2:*
+            Resource: '*'
+          - Sid: XRayAccess
+            Effect: Allow
+            Action:
+              - xray:*
             Resource: '*'
 
   EntDeployRole:
