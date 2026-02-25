@@ -7,11 +7,6 @@ Parameters:
     Default: arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005
     Description: The AWS ARN that can assume this role
 
-  RoleStsExternalId:
-    Type: String
-    Default: a6e5f06d-10db-475e-933b-e2efbf89fbe7
-    Description: STS ExternalId condition value to use with the role
-
   RoleName:
     Type: String
     Default: HomeProdAssumeAdmin
@@ -24,17 +19,14 @@ Parameters:
 
   RoleDescription:
     Type: String
-    Default: Role that allows HomeDev SSO to assume AdministratorAccess role
+    Default: Role that allows HomeDev SSO to assume EntHomePermissions role
     Description: IAM Role description
-
-Conditions:
-  HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
 
 Resources:
   EntDeployPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: EntAdditionalPermissions
+      ManagedPolicyName: EntHomePermissions
       Description: Custom policy for permissions in addition to the SecurityAudit policy
       Path: /
       PolicyDocument:
@@ -219,12 +211,9 @@ Resources:
           - Effect: Allow
             Principal:
               AWS: !Ref EntAwsAccountArn
-            Action: sts:AssumeRole
-            Condition: !If
-              - HasExternalId
-              - StringEquals:
-                  sts:ExternalId: !Ref RoleStsExternalId
-              - !Ref AWS::NoValue
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
       ManagedPolicyArns:
         - !Ref EntDeployPolicy
 

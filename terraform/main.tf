@@ -2,26 +2,17 @@ data "aws_iam_policy_document" "ent_deploy_assume_role" {
   statement {
     effect = "Allow"
 
-    actions = ["sts:AssumeRole"]
+    actions = ["sts:AssumeRole", "sts:TagSession"]
 
     principals {
       type        = "AWS"
       identifiers = [var.ent_aws_account_arn]
     }
-
-    dynamic "condition" {
-      for_each = var.role_sts_externalid != null ? [true] : []
-      content {
-        test     = "StringEquals"
-        variable = "sts:ExternalId"
-        values   = [var.role_sts_externalid]
-      }
-    }
   }
 }
 
 resource "aws_iam_policy" "ent_deploy_permissions" {
-  name        = "EntAdditionalPermissions"
+  name        = "EntHomePermissions"
   description = "Custom policy for permissions in addition to the SecurityAudit policy"
   path        = "/"
 

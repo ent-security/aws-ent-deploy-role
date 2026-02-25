@@ -4,12 +4,6 @@ variable "ent_aws_account_arn" {
   description = "Ent's AWS account ARN"
 }
 
-variable "role_sts_externalid" {
-  description = "STS ExternalId condition value to use with the role"
-  type        = string
-  default     = "a6e5f06d-10db-475e-933b-e2efbf89fbe7"
-}
-
 variable "role_name" {
   description = "IAM role name"
   type        = string
@@ -25,7 +19,7 @@ variable "role_path" {
 variable "role_description" {
   description = "IAM Role description"
   type        = string
-  default     = "Role that allows HomeDev SSO to assume AdministratorAccess role"
+  default     = "Role that allows HomeDev SSO to assume EntHomePermissions role"
 }
 
 variable "tags" {
