@@ -1,0 +1,20 @@
+{
+  "RoleName": "HomeProdAssumeAdmin",
+  "Path": "/",
+  "Description": "Role that allows HomeDev SSO to assume EntHomePermissions role",
+  "AssumeRolePolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
+        },
+        "Action": ["sts:AssumeRole", "sts:TagSession"]
+      }
+    ]
+  },
+  "ManagedPolicyArns": [
+    "EntHomePermissions"
+  ]
+}

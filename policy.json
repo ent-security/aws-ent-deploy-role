@@ -1,6 +1,10 @@
 {
-  "Version": "2012-10-17",
-  "Statement": [
+  "PolicyName": "EntHomePermissions",
+  "Description": "Custom policy for permissions in addition to the SecurityAudit policy",
+  "Path": "/",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
     {
       "Sid": "CertificateManagerAccess",
       "Effect": "Allow",
@@ -203,4 +207,5 @@
       "Resource": "*"
     }
   ]
+  }
 }
