@@ -4,12 +4,12 @@ Description: IAM Role for cross-account access with full permissions for deploym
 Parameters:
   EntAwsAccountArn:
     Type: String
-    Default: REPLACE_WITH_ENT_AWS_ACCOUNT_ARN
+    Default: arn:aws:iam::000000000000:root
     Description: The AWS ARN that can assume this role
 
   RoleStsExternalId:
     Type: String
-    Default: REPLACE_WITH_YOUR_EXTERNAL_ID
+    Default: ''
     Description: STS ExternalId condition value to use with the role
 
   RoleName:
