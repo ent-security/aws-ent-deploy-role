@@ -91,7 +91,7 @@ The following steps demonstrate how to connect AWS in Ent when using this module
 
 1. Add the code above to your terraform code
 2. Replace `main` in `ref=main` with the latest version from the [releases page](https://github.com/ent-security/aws-ent-deploy-role/releases)
-3. In your browser, open https://app.drata.com/account-settings/connections/aws
+3. In your browser, open the AWS connection settings page in Ent
 4. Copy the `Ent External ID` from the AWS connection panel in Ent and replace `YOUR_EXTERNAL_ID` in the module with the ID you copied
    * Do NOT close the drawer or click the Save button at this point
 5. Back in your terminal, run `terraform init` to download/update the module
