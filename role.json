@@ -8,7 +8,7 @@
       {
         "Effect": "Allow",
         "Principal": {
-          "AWS": "REPLACE_WITH_ENT_AWS_ACCOUNT_ARN"
+          "AWS": "<ENT_AWS_ACCOUNT_ARN>"
         },
         "Action": ["sts:AssumeRole", "sts:TagSession"]
       }

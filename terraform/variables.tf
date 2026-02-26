@@ -1,13 +1,13 @@
 variable "ent_aws_account_arn" {
   type        = string
-  default     = "REPLACE_WITH_ENT_AWS_ACCOUNT_ARN"
+  default     = "arn:aws:iam::000000000000:root"
   description = "Ent's AWS account ARN"
 }
 
 variable "role_sts_externalid" {
   description = "STS ExternalId condition value to use with the role"
   type        = string
-  default     = "REPLACE_WITH_YOUR_EXTERNAL_ID"
+  default     = null
 }
 
 variable "role_name" {
