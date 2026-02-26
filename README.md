@@ -83,6 +83,42 @@ Or deploy via the AWS Console:
 | `RoleName` | The name of the role |
 | `PolicyArn` | The ARN of the policy |
 
+## AWS CLI Usage
+
+Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
+
+1. Update `role.json` with your Ent AWS Account ARN:
+
+```bash
+sed -i '' 's/<ENT_AWS_ACCOUNT_ARN>/YOUR_ENT_AWS_ACCOUNT_ARN/' role.json
+```
+
+2. Create the IAM role:
+
+```bash
+aws iam create-role \
+  --role-name HomeProdAssumeAdmin \
+  --path / \
+  --description "Role that allows HomeDev SSO to assume EntHomePermissions role" \
+  --assume-role-policy-document "$(jq -c '.AssumeRolePolicyDocument' role.json)"
+```
+
+3. Create the IAM policy:
+
+```bash
+aws iam create-policy \
+  --policy-name EntHomePermissions \
+  --policy-document file://policy.json
+```
+
+4. Attach the policy to the role:
+
+```bash
+aws iam attach-role-policy \
+  --role-name HomeProdAssumeAdmin \
+  --policy-arn "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/EntHomePermissions"
+```
+
 ## Setup
 
 The following steps demonstrate how to connect AWS in Ent when using this module.
