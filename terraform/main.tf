@@ -2,20 +2,11 @@ data "aws_iam_policy_document" "ent_deploy_assume_role" {
   statement {
     effect = "Allow"
 
-    actions = ["sts:AssumeRole"]
+    actions = ["sts:AssumeRole", "sts:TagSession"]
 
     principals {
       type        = "AWS"
       identifiers = [var.ent_aws_account_arn]
-    }
-
-    dynamic "condition" {
-      for_each = var.role_sts_externalid != null ? [true] : []
-      content {
-        test     = "StringEquals"
-        variable = "sts:ExternalId"
-        values   = [var.role_sts_externalid]
-      }
     }
   }
 }
@@ -29,157 +20,201 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "CertificateManagerAccess"
         Effect   = "Allow"
-        Action   = [
-            "backup:*"
-        ]
+        Action   = ["acm:*"]
         Resource = "*"
       },
       {
+        Sid      = "OpenSearchServerlessAccess"
         Effect   = "Allow"
-        Action   = [
-            "sts:*"
-        ]
+        Action   = ["aoss:*"]
         Resource = "*"
       },
       {
+        Sid      = "AthenaAccess"
         Effect   = "Allow"
-        Action   = [
-            "eks:*"
-        ]
+        Action   = ["athena:*"]
         Resource = "*"
       },
       {
+        Sid      = "CostAndUsageReportAccess"
         Effect   = "Allow"
-        Action   = [
-            "s3:*"
-        ]
+        Action   = ["bcm-data-exports:*"]
         Resource = "*"
       },
       {
+        Sid      = "BedrockAccess"
         Effect   = "Allow"
-        Action   = [
-            "iam:*"
-        ]
+        Action   = ["bedrock:*"]
         Resource = "*"
       },
       {
+        Sid      = "CostExplorerAccess"
         Effect   = "Allow"
-        Action   = [
-            "ecr:*"
-        ]
+        Action   = ["ce:*"]
         Resource = "*"
       },
       {
+        Sid      = "CloudWatchAccess"
         Effect   = "Allow"
-        Action   = [
-            "secretsmanager:*"
-        ]
+        Action   = ["cloudwatch:*"]
         Resource = "*"
       },
       {
+        Sid      = "CognitoAccess"
         Effect   = "Allow"
-        Action   = [
-            "rds:*"
-        ]
+        Action   = ["cognito-idp:*"]
         Resource = "*"
       },
       {
+        Sid      = "EC2Access"
         Effect   = "Allow"
-        Action   = [
-            "cloudwatch:*"
-        ]
+        Action   = ["ec2:*"]
         Resource = "*"
       },
       {
+        Sid      = "ECRAccess"
         Effect   = "Allow"
-        Action   = [
-            "logs:*"
-        ]
+        Action   = ["ecr:*"]
         Resource = "*"
       },
       {
+        Sid      = "EKSAccess"
         Effect   = "Allow"
-        Action   = [
-            "aoss:*"
-        ]
+        Action   = ["eks:*"]
         Resource = "*"
       },
       {
+        Sid      = "ElastiCacheAccess"
         Effect   = "Allow"
-        Action   = [
-            "elasticache:*"
-        ]
+        Action   = ["elasticache:*"]
         Resource = "*"
       },
       {
+        Sid      = "ELBAccess"
         Effect   = "Allow"
-        Action   = [
-            "sns:*"
-        ]
+        Action   = ["elasticloadbalancing:*"]
         Resource = "*"
       },
       {
+        Sid      = "GlueAccess"
         Effect   = "Allow"
-        Action   = [
-            "ec2:*"
-        ]
+        Action   = ["glue:*"]
         Resource = "*"
       },
       {
+        Sid      = "GrafanaAccess"
         Effect   = "Allow"
-        Action   = [
-            "kms:*"
-        ]
+        Action   = ["grafana:*"]
         Resource = "*"
       },
       {
+        Sid      = "IAMAccess"
         Effect   = "Allow"
-        Action   = [
-            "route53:*"
-        ]
+        Action   = ["iam:*"]
         Resource = "*"
       },
       {
+        Sid      = "KendraAccess"
         Effect   = "Allow"
-        Action   = [
-            "route53domains:*"
-        ]
+        Action   = ["kendra:*"]
         Resource = "*"
       },
       {
+        Sid      = "KMSAccess"
         Effect   = "Allow"
-        Action   = [
-            "acm:*"
-        ]
+        Action   = ["kms:*"]
         Resource = "*"
       },
       {
+        Sid      = "LambdaAccess"
         Effect   = "Allow"
-        Action   = [
-            "sqs:*"
-        ]
+        Action   = ["lambda:*"]
         Resource = "*"
       },
       {
+        Sid      = "CloudWatchLogsAccess"
         Effect   = "Allow"
-        Action   = [
-            "resource-groups:*"
-        ]
+        Action   = ["logs:*"]
         Resource = "*"
       },
       {
+        Sid      = "RDSAccess"
         Effect   = "Allow"
-        Action   = [
-            "tag:*"
-        ]
+        Action   = ["rds:*", "rds-db:*"]
         Resource = "*"
       },
       {
+        Sid      = "ResourceGroupsAccess"
         Effect   = "Allow"
-        Action   = [
-            "bedrock:*"
-        ]
+        Action   = ["resource-groups:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "Route53Access"
+        Effect   = "Allow"
+        Action   = ["route53:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "S3Access"
+        Effect   = "Allow"
+        Action   = ["s3:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "SageMakerAccess"
+        Effect   = "Allow"
+        Action   = ["sagemaker:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "SecretsManagerAccess"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "ShieldAccess"
+        Effect   = "Allow"
+        Action   = ["shield:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "SNSAccess"
+        Effect   = "Allow"
+        Action   = ["sns:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "SQSAccess"
+        Effect   = "Allow"
+        Action   = ["sqs:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "STSAccess"
+        Effect   = "Allow"
+        Action   = ["sts:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "TaggingAccess"
+        Effect   = "Allow"
+        Action   = ["tag:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "WAFAccess"
+        Effect   = "Allow"
+        Action   = ["wafv2:*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "XRayAccess"
+        Effect   = "Allow"
+        Action   = ["xray:*"]
         Resource = "*"
       }
     ]
