@@ -4,12 +4,6 @@ variable "ent_aws_account_arn" {
   description = "Ent's AWS account ARN"
 }
 
-variable "role_sts_externalid" {
-  description = "STS ExternalId condition value to use with the role"
-  type        = string
-  default     = null
-}
-
 variable "role_name" {
   description = "IAM role name"
   type        = string
