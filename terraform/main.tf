@@ -12,8 +12,8 @@ data "aws_iam_policy_document" "ent_deploy_assume_role" {
 }
 
 resource "aws_iam_policy" "ent_deploy_permissions" {
-  name        = "EntAdditionalPermissions"
-  description = "Custom policy for permissions in addition to the SecurityAudit policy"
+  name        = "EntHomeAccess"
+  description = "Custom policy for permissions needed by Ent Home to deploy and manage resources in customer accounts. This policy is attached to the role that Ent Home assumes when deploying resources in customer accounts."
   path        = "/"
 
   policy = jsonencode({
