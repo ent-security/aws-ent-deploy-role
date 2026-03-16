@@ -19,7 +19,7 @@ variable "role_path" {
 variable "role_description" {
   description = "IAM Role description"
   type        = string
-  default     = "Role that allows HomeDev SSO to assume AdministratorAccess role"
+  default     = "Role that allows Ent Home to assume AdministratorAccess role"
 }
 
 variable "tags" {
