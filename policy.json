@@ -34,6 +34,14 @@
             "Resource": "*"
         },
         {
+            "Sid": "CostAndUsageReportLegacyAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cur:*"
+            ],
+            "Resource": "*"
+        },
+        {
             "Sid": "BedrockAccess",
             "Effect": "Allow",
             "Action": [
