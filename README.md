@@ -19,6 +19,33 @@ output "ent_deployment_role" {
 
 After you apply this terraform, it will output the Role ARN that you can paste into the AWS connection panel in Ent to initiate the connection.
 
+### Deploying with Terraform / OpenTofu
+
+If you want to deploy the Terraform module directly (e.g. from a local clone), you can use either Terraform or OpenTofu:
+
+```bash
+cd terraform/
+# Initialize providers
+terraform init    # or: tofu init
+
+# Preview the changes
+terraform plan    # or: tofu plan
+
+# Apply (review the plan output before confirming)
+terraform apply   # or: tofu apply
+```
+
+To customize the deployment, create a `terraform.tfvars` file:
+
+```hcl
+role_name           = "HomeProdAssumeAdmin"
+ent_aws_account_arn = "arn:aws:iam::123456789012:root"
+tags = {
+  Environment = "production"
+  ManagedBy   = "terraform"
+}
+```
+
 ### Terraform Variables
 
 | Variable | Description | Default | Required |
@@ -161,6 +188,7 @@ This role grants full access to the following AWS services:
 | Athena | `athena:*` |
 | Bedrock | `bedrock:*` |
 | BCM Data Exports | `bcm-data-exports:*` |
+| Cost and Usage Report (legacy) | `cur:*` |
 | CloudWatch | `cloudwatch:*` |
 | CloudWatch Logs | `logs:*` |
 | Cognito | `cognito-idp:*` |
