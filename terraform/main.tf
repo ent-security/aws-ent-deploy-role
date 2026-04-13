@@ -44,6 +44,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
+        Sid      = "CostAndUsageReportLegacyAccess"
+        Effect   = "Allow"
+        Action   = ["cur:*"]
+        Resource = "*"
+      },
+      {
         Sid      = "BedrockAccess"
         Effect   = "Allow"
         Action   = ["bedrock:*"]
