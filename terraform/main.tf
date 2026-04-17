@@ -71,6 +71,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "arn:aws:ecr:*:*:repository/e???????????????-*"
       },
       {
+        Sid      = "ECRAuthTokenAccess"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
         Sid    = "EKSAccess"
         Effect = "Allow"
         Action = ["eks:*"]
@@ -154,6 +160,15 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
           "arn:aws:logs:*:*:log-group:e???????????????-*:*",
           "arn:aws:logs:*:*:log-group:/aws/eks/e???????????????-*/*",
         ]
+      },
+      {
+        Sid    = "CloudWatchLogsDescribeAccess"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+        ]
+        Resource = "*"
       },
       {
         Sid    = "RDSAccess"

@@ -191,14 +191,16 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | CloudWatch | `cloudwatch:*` | alarms prefixed `e???????????????-` |
 | EC2 | `ec2:*` | unscoped (VPC primitives don't support resource-level permissions) |
 | ECR | `ecr:*` | repositories prefixed `e???????????????-` |
+| ECR (auth token) | `ecr:GetAuthorizationToken` | unscoped (action does not support resource-level permissions) |
 | EKS | `eks:*` | clusters/nodegroups/addons/access-entries prefixed `e???????????????-` |
 | ElastiCache | `elasticache:*` | replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
 | Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????-` |
 | IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-` |
-| IAM (service-linked) | `iam:CreateServiceLinkedRole` | `aws:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
+| IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
 | KMS | `kms:*` | aliases prefixed `e???????????????-` (keys have UUIDs) |
 | CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-` |
+| CloudWatch Logs (describe) | `logs:DescribeLogGroups`, `logs:DescribeLogStreams` | unscoped (describe APIs don't support resource-level permissions) |
 | RDS | `rds:*`, `rds-db:*` | DB/cluster/parameter/subnet/event resources prefixed `e???????????????-` |
 | Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
