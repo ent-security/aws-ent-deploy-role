@@ -65,6 +65,11 @@ Resources:
               - cur:Describe*
               - cur:Get*
             Resource: '*'
+          - Sid: BCMDataExportsAccess
+            Effect: Allow
+            Action:
+              - bcm-data-exports:*
+            Resource: arn:aws:bcm-data-exports:*:*:export/*
           - Sid: CloudWatchAccess
             Effect: Allow
             Action:
@@ -227,6 +232,13 @@ Resources:
               - sts:DecodeAuthorizationMessage
               - sts:GetAccessKeyInfo
             Resource: '*'
+          - Sid: WAFv2Access
+            Effect: Allow
+            Action:
+              - wafv2:*
+            Resource:
+              - arn:aws:wafv2:*:*:regional/webacl/e???????????????-*/*
+              - arn:aws:wafv2:*:*:global/webacl/e???????????????-*/*
           - Sid: TaggingAccess
             Effect: Allow
             Action:

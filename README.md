@@ -186,6 +186,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 |---------|---------|----------------|
 | ACM | `acm:*` | unscoped (ACM certificates have auto-generated UUIDs) |
 | Athena | `athena:*` | workgroups/datacatalogs prefixed `e???????????????-` |
+| BCM Data Exports | `bcm-data-exports:*` | export resource type (IDs are UUIDs) |
 | Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) |
 | Cost and Usage Report (read-only) | `cur:Describe*`, `cur:Get*` | unscoped |
 | CloudWatch | `cloudwatch:*` | alarms prefixed `e???????????????-` |
@@ -211,6 +212,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | SQS | `sqs:*` | queues prefixed `e???????????????-` |
 | STS (assume role) | `sts:AssumeRole`, `sts:TagSession`, `sts:AssumeRoleWithWebIdentity` | roles prefixed `e???????????????-` |
 | STS (identity) | `sts:GetCallerIdentity`, `sts:DecodeAuthorizationMessage`, `sts:GetAccessKeyInfo` | unscoped (these calls don't take resources) |
+| WAFv2 | `wafv2:*` | regional/global web-ACLs prefixed `e???????????????-` |
 | Resource Tagging API | `tag:*` | unscoped (multi-resource API) |
 
 ### Resource scoping
@@ -229,6 +231,6 @@ e[0-9a-f]{15}-
 
 For transparency, the following services were intentionally excluded from this role because they are not used by Ent:
 
-AOSS (OpenSearch Serverless), BCM Data Exports, Cost Explorer, Cognito IDP, Amazon Managed Grafana, Kendra, Lambda, SageMaker, Shield, WAFv2, X-Ray, and the write surface of Cost and Usage Reports (`cur` beyond `Describe*`/`Get*`).
+AOSS (OpenSearch Serverless), Cost Explorer, Cognito IDP, Amazon Managed Grafana, Kendra, Lambda, SageMaker, Shield, X-Ray, and the write surface of Cost and Usage Reports (`cur` beyond `Describe*`/`Get*`).
 
 If you enable an Ent feature that later requires one of these, add a scoped statement for it and re-deploy.

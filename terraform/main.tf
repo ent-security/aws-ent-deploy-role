@@ -53,6 +53,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
+        Sid      = "BCMDataExportsAccess"
+        Effect   = "Allow"
+        Action   = ["bcm-data-exports:*"]
+        Resource = "arn:aws:bcm-data-exports:*:*:export/*"
+      },
+      {
         Sid      = "CloudWatchAccess"
         Effect   = "Allow"
         Action   = ["cloudwatch:*"]
@@ -253,6 +259,15 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
           "sts:GetAccessKeyInfo",
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "WAFv2Access"
+        Effect = "Allow"
+        Action = ["wafv2:*"]
+        Resource = [
+          "arn:aws:wafv2:*:*:regional/webacl/e???????????????-*/*",
+          "arn:aws:wafv2:*:*:global/webacl/e???????????????-*/*",
+        ]
       },
       {
         Sid      = "TaggingAccess"
