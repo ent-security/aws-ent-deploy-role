@@ -180,41 +180,52 @@ aws-ent-deploy-role/
 
 ## Permissions
 
-This role grants full access to the following AWS services:
+This role grants scoped access to the AWS services below. Each statement is constrained in one of three ways: (a) scoped to resource ARNs that match `ent-platform`'s auto-generated name prefix, (b) retained unscoped because the AWS service does not support resource-level permissions for the calls Ent needs, or (c) filtered to a read-only or service-linked-role subset.
 
-| Service | Actions |
-|---------|---------|
-| ACM | `acm:*` |
-| Athena | `athena:*` |
-| Bedrock | `bedrock:*` |
-| BCM Data Exports | `bcm-data-exports:*` |
-| Cost and Usage Report (legacy) | `cur:*` |
-| CloudWatch | `cloudwatch:*` |
-| CloudWatch Logs | `logs:*` |
-| Cognito | `cognito-idp:*` |
-| Cost Explorer | `ce:*` |
-| EC2 | `ec2:*` |
-| ECR | `ecr:*` |
-| EKS | `eks:*` |
-| ElastiCache | `elasticache:*` |
-| ELB | `elasticloadbalancing:*` |
-| Glue | `glue:*` |
-| Grafana | `grafana:*` |
-| IAM | `iam:*` |
-| Kendra | `kendra:*` |
-| KMS | `kms:*` |
-| Lambda | `lambda:*` |
-| OpenSearch Serverless | `aoss:*` |
-| RDS | `rds:*`, `rds-db:*` |
-| Resource Groups | `resource-groups:*` |
-| Resource Tagging | `tag:*` |
-| Route 53 | `route53:*` |
-| S3 | `s3:*` |
-| SageMaker | `sagemaker:*` |
-| Secrets Manager | `secretsmanager:*` |
-| Shield | `shield:*` |
-| SNS | `sns:*` |
-| SQS | `sqs:*` |
-| STS | `sts:*` |
-| WAF | `wafv2:*` |
-| X-Ray | `xray:*` |
+| Service | Actions | Resource scope |
+|---------|---------|----------------|
+| ACM | `acm:*` | unscoped (ACM certificates have auto-generated UUIDs) |
+| Athena | `athena:*` | workgroups/datacatalogs prefixed `e???????????????-` |
+| Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) |
+| Cost and Usage Report (read-only) | `cur:Describe*`, `cur:Get*` | unscoped |
+| CloudWatch | `cloudwatch:*` | alarms prefixed `e???????????????-` |
+| EC2 | `ec2:*` | unscoped (VPC primitives don't support resource-level permissions) |
+| ECR | `ecr:*` | repositories prefixed `e???????????????-` |
+| EKS | `eks:*` | clusters/nodegroups/addons/access-entries prefixed `e???????????????-` |
+| ElastiCache | `elasticache:*` | replication/parameter/subnet groups prefixed `e???????????????-` |
+| ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
+| Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????-` |
+| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-` |
+| IAM (service-linked) | `iam:CreateServiceLinkedRole` | `aws:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
+| KMS | `kms:*` | aliases prefixed `e???????????????-` (keys have UUIDs) |
+| CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-` |
+| RDS | `rds:*`, `rds-db:*` | DB/cluster/parameter/subnet/event resources prefixed `e???????????????-` |
+| Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
+| Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
+| S3 | `s3:*` | buckets prefixed `e???????????????-` |
+| Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-` or `mks` (macOS SSH keys) |
+| SNS | `sns:*` | topics prefixed `e???????????????-` |
+| SQS | `sqs:*` | queues prefixed `e???????????????-` |
+| STS (assume role) | `sts:AssumeRole`, `sts:TagSession`, `sts:AssumeRoleWithWebIdentity` | roles prefixed `e???????????????-` |
+| STS (identity) | `sts:GetCallerIdentity`, `sts:DecodeAuthorizationMessage`, `sts:GetAccessKeyInfo` | unscoped (these calls don't take resources) |
+| Resource Tagging API | `tag:*` | unscoped (multi-resource API) |
+
+### Resource scoping
+
+Most resources that Ent provisions in your account are named with an auto-generated prefix of the form:
+
+```
+e[0-9a-f]{15}-
+```
+
+(The literal letter `e`, fifteen lowercase hex characters, and a hyphen — for example `e1a2b3c4d5e6f78-`.) The prefix is a SHA-256 of the tenant, environment, and region, produced at deploy time by Ent's Deployment service. The IAM policy uses the glob `e???????????????-*` to match exactly this shape.
+
+**Cross-repo dependency:** this policy assumes the prefix generator in `ent-platform`'s `deploy/tofu/platform/regional.tf`. If that formula changes shape in a future Ent release, the policy must be updated in lockstep or new deployments will fail with `AccessDenied`.
+
+### Services not granted
+
+For transparency, the following services were intentionally excluded from this role because they are not used by Ent:
+
+AOSS (OpenSearch Serverless), BCM Data Exports, Cost Explorer, Cognito IDP, Amazon Managed Grafana, Kendra, Lambda, SageMaker, Shield, WAFv2, X-Ray, and the write surface of Cost and Usage Reports (`cur` beyond `Describe*`/`Get*`).
+
+If you enable an Ent feature that later requires one of these, add a scoped statement for it and re-deploy.
