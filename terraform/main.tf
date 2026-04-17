@@ -77,6 +77,15 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
+        Sid    = "EFSAccess"
+        Effect = "Allow"
+        Action = ["elasticfilesystem:*"]
+        Resource = [
+          "arn:aws:elasticfilesystem:*:*:file-system/*",
+          "arn:aws:elasticfilesystem:*:*:access-point/*",
+        ]
+      },
+      {
         Sid    = "EKSAccess"
         Effect = "Allow"
         Action = ["eks:*"]

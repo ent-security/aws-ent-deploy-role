@@ -192,6 +192,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | EC2 | `ec2:*` | unscoped (VPC primitives don't support resource-level permissions) |
 | ECR | `ecr:*` | repositories prefixed `e???????????????-` |
 | ECR (auth token) | `ecr:GetAuthorizationToken` | unscoped (action does not support resource-level permissions) |
+| EFS | `elasticfilesystem:*` | file-systems and access-points (IDs are auto-generated like KMS keys) |
 | EKS | `eks:*` | clusters/nodegroups/addons/access-entries prefixed `e???????????????-` |
 | ElastiCache | `elasticache:*` | replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
