@@ -44,18 +44,14 @@ Removed from the policy entirely. Evidence: no usage found in `ent-platform` dur
 | `ShieldAccess` | `shield` | Not referenced. Shield Standard is automatic. |
 | `WAFAccess` | `wafv2` | Not referenced. |
 | `XRayAccess` | `xray` | Not referenced; tracing goes through the OTEL → Prometheus/Tempo stack. |
+| `OpenSearchServerlessAccess` | `aoss` | Confirmed unused — Ent uses provisioned OpenSearch, not the serverless variant. |
+| `GrafanaAccess` | `grafana` | Confirmed unused — dashboards served by self-hosted Grafana on EKS, not Amazon Managed Grafana. |
 
 Note on `cur`: the code review found a small number of read-only CUR API calls (`DescribeReportDefinitions`, `GetClassicReport`, `GetClassicReportPreferences`) in `ent-home-api`. We retain `cur:Describe*` and `cur:Get*` only, dropping the rest. This is a narrow exception to the "keep `service:*`" rule because CUR's surface is small and the read-only subset is unambiguous.
 
 ### Services held pending verification
 
-These had uncertain evidence in the code review. They are kept in the narrowed policy unless the user confirms they can be removed:
-
-- `aoss` (OpenSearch Serverless) — verify whether any ent-platform deployment uses serverless vs. provisioned OpenSearch.
-- `resource-groups` — one terraform reference in `home/main.tf`.
-- `grafana` — Amazon Managed Grafana is used in some regions only.
-
-Action for the user: confirm (or disconfirm) each of these before the implementation PR merges. If confirmed unused, they can be dropped during the plan.
+`resource-groups` had one terraform reference in `home/main.tf` during the code review. Kept in the narrowed policy. Action for the user: confirm before the implementation PR merges whether it can be dropped.
 
 ## Services kept with narrowed resources
 
@@ -74,7 +70,6 @@ For each, `Action: service:*` is preserved and `Resource: "*"` is replaced with 
 | `elasticache` | `arn:aws:elasticache:*:*:replicationgroup:*${prefix}*`, `arn:aws:elasticache:*:*:parametergroup:*${prefix}*`, `arn:aws:elasticache:*:*:subnetgroup:*${prefix}*` |
 | `elasticloadbalancing` | `*` — ALB Controller creates LBs/TGs with auto-generated names driven by Kubernetes service annotations. Carve-out. |
 | `glue` | `arn:aws:glue:*:*:catalog`, `arn:aws:glue:*:*:database/*${prefix}*`, `arn:aws:glue:*:*:table/*${prefix}*/*` |
-| `grafana` | `*` — Grafana workspace IDs are UUIDs. Carve-out. (Pending verification.) |
 | `iam` | `arn:aws:iam::*:role/*${prefix}*`, `arn:aws:iam::*:policy/*${prefix}*`, `arn:aws:iam::*:instance-profile/*${prefix}*`, plus `arn:aws:iam::*:role/aws-service-role/*` for `iam:CreateServiceLinkedRole` (scoped by `aws:ServiceName` condition listing the services Ent actually uses). |
 | `kms` | `arn:aws:kms:*:*:key/*`, `arn:aws:kms:*:*:alias/*${prefix}*` — keys have UUIDs, so alias-based scoping is the control point. |
 | `logs` | `arn:aws:logs:*:*:log-group:*${prefix}*`, `arn:aws:logs:*:*:log-group:*${prefix}*:*`, `arn:aws:logs:*:*:log-group:/aws/eks/*${prefix}*/*` |
@@ -105,7 +100,7 @@ One statement per service (as today). Each statement gets one of:
 1. **Scoped:** `Resource: [<patterns with ${prefix}>]`. Most services.
 2. **Scoped + read-only action filter:** `Action: [cur:Describe*, cur:Get*]`, `Resource: "*"`. Only `cur`.
 3. **Carve-out with comment:** `Resource: "*"` retained with an inline `Sid` suffix like `AcmAccessUnscoped` or a companion comment explaining why. Services: `acm`, `bedrock`, `ec2`, `elasticloadbalancing`, `grafana`, `route53`, `tag`, and the `sts:GetCallerIdentity` portion.
-4. **IAM service-linked role:** separate statement for `iam:CreateServiceLinkedRole` with `Condition: StringLike: aws:AWSServiceName: [<ent-platform-used services>]`. List starts with: `eks.amazonaws.com`, `elasticloadbalancing.amazonaws.com`, `rds.amazonaws.com`, `elasticache.amazonaws.com`, `grafana.amazonaws.com`, `opensearchservice.amazonaws.com` — exact list to be finalized during implementation by checking each EKS add-on and terraform module.
+4. **IAM service-linked role:** separate statement for `iam:CreateServiceLinkedRole` with `Condition: StringLike: aws:AWSServiceName: [<ent-platform-used services>]`. List starts with: `eks.amazonaws.com`, `elasticloadbalancing.amazonaws.com`, `rds.amazonaws.com`, `elasticache.amazonaws.com`, `opensearchservice.amazonaws.com` — exact list to be finalized during implementation by checking each EKS add-on and terraform module.
 
 ## Files touched
 
@@ -120,7 +115,7 @@ All three representations must stay equivalent after the change; the PR descript
 ## Risks
 
 - **Naming drift in ent-platform.** If ent-platform creates a resource without the prefix in the name, deployment fails with AccessDenied. Mitigation: the code review pass found usage of a `NamePrefix` variable in ent-platform's tofu — consistent, but not exhaustively verified. The implementation plan will include a dry-run against a staging deployment before release.
-- **Pending-verification services (`aoss`, `resource-groups`, `grafana`).** Leaving them in costs nothing; removing them risks breaking features the code review missed. The plan includes a verification checkpoint before we decide.
+- **Pending-verification service (`resource-groups`).** Kept in the narrowed policy until the user confirms; removing it risks breaking a feature the code review missed. The plan includes a verification checkpoint.
 - **CloudFormation parameter support for lists.** CFN templates can interpolate a scalar parameter into strings (`!Sub`) — confirmed this works with embedded policy documents.
 - **Future AWS service expansion.** If Ent adds a new service integration, the policy must grow. The README will note this review is a point-in-time snapshot.
 
