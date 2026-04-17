@@ -10,36 +10,15 @@
             "Resource": "*"
         },
         {
-            "Sid": "OpenSearchServerlessAccess",
-            "Effect": "Allow",
-            "Action": [
-                "aoss:*"
-            ],
-            "Resource": "*"
-        },
-        {
             "Sid": "AthenaAccess",
             "Effect": "Allow",
             "Action": [
                 "athena:*"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CostAndUsageReportAccess",
-            "Effect": "Allow",
-            "Action": [
-                "bcm-data-exports:*"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CostAndUsageReportLegacyAccess",
-            "Effect": "Allow",
-            "Action": [
-                "cur:*"
-            ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:athena:*:*:workgroup/e???????????????-*",
+                "arn:aws:athena:*:*:datacatalog/e???????????????-*"
+            ]
         },
         {
             "Sid": "BedrockAccess",
@@ -47,13 +26,17 @@
             "Action": [
                 "bedrock:*"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:bedrock:*:*:inference-profile/*",
+                "arn:aws:bedrock:*:*:application-inference-profile/*"
+            ]
         },
         {
-            "Sid": "CostExplorerAccess",
+            "Sid": "CostAndUsageReportReadAccess",
             "Effect": "Allow",
             "Action": [
-                "ce:*"
+                "cur:Describe*",
+                "cur:Get*"
             ],
             "Resource": "*"
         },
@@ -63,15 +46,9 @@
             "Action": [
                 "cloudwatch:*"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CognitoAccess",
-            "Effect": "Allow",
-            "Action": [
-                "cognito-idp:*"
-            ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:cloudwatch:*:*:alarm:e???????????????-*"
+            ]
         },
         {
             "Sid": "EC2Access",
@@ -87,7 +64,7 @@
             "Action": [
                 "ecr:*"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:ecr:*:*:repository/e???????????????-*"
         },
         {
             "Sid": "EKSAccess",
@@ -95,7 +72,12 @@
             "Action": [
                 "eks:*"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:eks:*:*:cluster/e???????????????-*",
+                "arn:aws:eks:*:*:nodegroup/e???????????????-*/*/*",
+                "arn:aws:eks:*:*:access-entry/e???????????????-*/*",
+                "arn:aws:eks:*:*:addon/e???????????????-*/*/*"
+            ]
         },
         {
             "Sid": "ElastiCacheAccess",
@@ -103,7 +85,11 @@
             "Action": [
                 "elasticache:*"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:elasticache:*:*:replicationgroup:e???????????????-*",
+                "arn:aws:elasticache:*:*:parametergroup:e???????????????-*",
+                "arn:aws:elasticache:*:*:subnetgroup:e???????????????-*"
+            ]
         },
         {
             "Sid": "ELBAccess",
@@ -119,15 +105,11 @@
             "Action": [
                 "glue:*"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "GrafanaAccess",
-            "Effect": "Allow",
-            "Action": [
-                "grafana:*"
-            ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:glue:*:*:catalog",
+                "arn:aws:glue:*:*:database/e???????????????-*",
+                "arn:aws:glue:*:*:table/e???????????????-*/*"
+            ]
         },
         {
             "Sid": "IAMAccess",
@@ -135,15 +117,32 @@
             "Action": [
                 "iam:*"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:iam::*:role/e???????????????-*",
+                "arn:aws:iam::*:policy/e???????????????-*",
+                "arn:aws:iam::*:instance-profile/e???????????????-*"
+            ]
         },
         {
-            "Sid": "KendraAccess",
+            "Sid": "IAMServiceLinkedRoleAccess",
             "Effect": "Allow",
             "Action": [
-                "kendra:*"
+                "iam:CreateServiceLinkedRole"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+            "Condition": {
+                "StringLike": {
+                    "iam:AWSServiceName": [
+                        "eks.amazonaws.com",
+                        "eks-nodegroup.amazonaws.com",
+                        "eks-fargate-pods.amazonaws.com",
+                        "elasticloadbalancing.amazonaws.com",
+                        "rds.amazonaws.com",
+                        "elasticache.amazonaws.com",
+                        "opensearchservice.amazonaws.com"
+                    ]
+                }
+            }
         },
         {
             "Sid": "KMSAccess",
@@ -151,15 +150,10 @@
             "Action": [
                 "kms:*"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "LambdaAccess",
-            "Effect": "Allow",
-            "Action": [
-                "lambda:*"
-            ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:kms:*:*:key/*",
+                "arn:aws:kms:*:*:alias/e???????????????-*"
+            ]
         },
         {
             "Sid": "CloudWatchLogsAccess",
@@ -167,7 +161,11 @@
             "Action": [
                 "logs:*"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:logs:*:*:log-group:e???????????????-*",
+                "arn:aws:logs:*:*:log-group:e???????????????-*:*",
+                "arn:aws:logs:*:*:log-group:/aws/eks/e???????????????-*/*"
+            ]
         },
         {
             "Sid": "RDSAccess",
@@ -176,7 +174,14 @@
                 "rds:*",
                 "rds-db:*"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:rds:*:*:db:e???????????????-*",
+                "arn:aws:rds:*:*:cluster:e???????????????-*",
+                "arn:aws:rds:*:*:pg:e???????????????-*",
+                "arn:aws:rds:*:*:subgrp:e???????????????-*",
+                "arn:aws:rds:*:*:es:e???????????????-*",
+                "arn:aws:rds-db:*:*:dbuser:*/*"
+            ]
         },
         {
             "Sid": "ResourceGroupsAccess",
@@ -184,7 +189,7 @@
             "Action": [
                 "resource-groups:*"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:resource-groups:*:*:group/e???????????????-*"
         },
         {
             "Sid": "Route53Access",
@@ -200,15 +205,10 @@
             "Action": [
                 "s3:*"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "SageMakerAccess",
-            "Effect": "Allow",
-            "Action": [
-                "sagemaker:*"
-            ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:s3:::e???????????????-*",
+                "arn:aws:s3:::e???????????????-*/*"
+            ]
         },
         {
             "Sid": "SecretsManagerAccess",
@@ -216,15 +216,10 @@
             "Action": [
                 "secretsmanager:*"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "ShieldAccess",
-            "Effect": "Allow",
-            "Action": [
-                "shield:*"
-            ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:secretsmanager:*:*:secret:e???????????????-*",
+                "arn:aws:secretsmanager:*:*:secret:mks*"
+            ]
         },
         {
             "Sid": "SNSAccess",
@@ -232,7 +227,7 @@
             "Action": [
                 "sns:*"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:sns:*:*:e???????????????-*"
         },
         {
             "Sid": "SQSAccess",
@@ -240,13 +235,25 @@
             "Action": [
                 "sqs:*"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:sqs:*:*:e???????????????-*"
         },
         {
-            "Sid": "STSAccess",
+            "Sid": "STSAssumeRoleAccess",
             "Effect": "Allow",
             "Action": [
-                "sts:*"
+                "sts:AssumeRole",
+                "sts:TagSession",
+                "sts:AssumeRoleWithWebIdentity"
+            ],
+            "Resource": "arn:aws:iam::*:role/e???????????????-*"
+        },
+        {
+            "Sid": "STSIdentityAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity",
+                "sts:DecodeAuthorizationMessage",
+                "sts:GetAccessKeyInfo"
             ],
             "Resource": "*"
         },
@@ -255,22 +262,6 @@
             "Effect": "Allow",
             "Action": [
                 "tag:*"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "WAFAccess",
-            "Effect": "Allow",
-            "Action": [
-                "wafv2:*"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "XRayAccess",
-            "Effect": "Allow",
-            "Action": [
-                "xray:*"
             ],
             "Resource": "*"
         }
