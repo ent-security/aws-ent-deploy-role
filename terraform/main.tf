@@ -45,11 +45,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         ]
       },
       {
-        Sid    = "CostAndUsageReportReadAccess"
+        Sid    = "CostAndUsageReportAccess"
         Effect = "Allow"
         Action = [
           "cur:Describe*",
           "cur:Get*",
+          "cur:PutReportDefinition",
         ]
         Resource = "*"
       },
@@ -108,10 +109,17 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         ]
       },
       {
+        Sid      = "EKSDescribeAddonVersionsAccess"
+        Effect   = "Allow"
+        Action   = ["eks:DescribeAddonVersions"]
+        Resource = "*"
+      },
+      {
         Sid    = "ElastiCacheAccess"
         Effect = "Allow"
         Action = ["elasticache:*"]
         Resource = [
+          "arn:aws:elasticache:*:*:cluster:e???????????????-*",
           "arn:aws:elasticache:*:*:replicationgroup:e???????????????-*",
           "arn:aws:elasticache:*:*:parametergroup:e???????????????-*",
           "arn:aws:elasticache:*:*:subnetgroup:e???????????????-*",
@@ -142,6 +150,7 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
           "arn:aws:iam::*:policy/e???????????????-*",
           "arn:aws:iam::*:instance-profile/e???????????????-*",
           "arn:aws:iam::*:policy/AmazonEKS_*",
+          "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/*",
         ]
       },
       {
@@ -176,6 +185,7 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = [
           "arn:aws:kms:*:*:key/*",
           "arn:aws:kms:*:*:alias/e???????????????-*",
+          "arn:aws:kms:*:*:alias/eks/e???????????????-*",
         ]
       },
       {
@@ -253,6 +263,7 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = [
           "arn:aws:secretsmanager:*:*:secret:e???????????????-*",
           "arn:aws:secretsmanager:*:*:secret:mks*",
+          "arn:aws:secretsmanager:*:*:secret:rds!*",
         ]
       },
       {

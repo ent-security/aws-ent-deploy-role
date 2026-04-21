@@ -188,20 +188,21 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | Athena | `athena:*` | workgroups/datacatalogs prefixed `e???????????????-` |
 | BCM Data Exports | `bcm-data-exports:*` | export and table resource types (CUR export reads from AWS-managed `table/COST_AND_USAGE_REPORT`) |
 | Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) + AWS-owned foundation-models (needed by `CreateInferenceProfile`) |
-| Cost and Usage Report (read-only) | `cur:Describe*`, `cur:Get*` | unscoped |
+| Cost and Usage Report | `cur:Describe*`, `cur:Get*`, `cur:PutReportDefinition` | unscoped (BCM Data Exports' `CreateExport` internally calls the legacy `cur:PutReportDefinition` API) |
 | CloudWatch | `cloudwatch:*` | alarms prefixed `e???????????????-` |
 | EC2 | `ec2:*` | unscoped (VPC primitives don't support resource-level permissions) |
 | ECR | `ecr:*` | repositories prefixed `e???????????????-` |
 | ECR (auth token) | `ecr:GetAuthorizationToken` | unscoped (action does not support resource-level permissions) |
 | EFS | `elasticfilesystem:*` | file-systems and access-points (IDs are auto-generated like KMS keys) |
 | EKS | `eks:*` | clusters/nodegroups/addons/access-entries/pod-identity-associations prefixed `e???????????????-` |
-| ElastiCache | `elasticache:*` | replication/parameter/subnet groups prefixed `e???????????????-` |
+| EKS (addon versions) | `eks:DescribeAddonVersions` | unscoped (account-level API; `aws_eks_addon_version` data source reads it for metrics-server/adot/ebs-csi/cert-manager/pod-identity-agent) |
+| ElastiCache | `elasticache:*` | cache-clusters + replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
 | Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????` (Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
-| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) |
+| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers) |
 | IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
-| KMS | `kms:*` | aliases prefixed `e???????????????-` (keys have UUIDs) |
+| KMS | `kms:*` | aliases prefixed `e???????????????-` or `eks/e???????????????-` (keys have UUIDs) |
 | KMS (create) | `kms:CreateKey` | unscoped (action does not support resource-level permissions — the key does not exist yet) |
 | CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-`, `/aws/*/e???????????????-*` (AWS-service-managed paths for RDS/ElastiCache/flow-logs/EKS), and `/<tenant-uuid>/*` (e.g. CloudTrail CIS-alarms log group created under `/<tenant_id>/aws/cloudtrail/…`) |
 | CloudWatch Logs (describe) | `logs:DescribeLogGroups`, `logs:DescribeLogStreams` | unscoped (describe APIs don't support resource-level permissions) |
@@ -210,7 +211,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |
 | S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
-| Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-` or `mks` (macOS SSH keys) |
+| Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), or `rds!` (RDS-managed master-password secrets) |
 | SNS | `sns:*` | topics prefixed `e???????????????-` and `db-event-notifications` (hardcoded default in `ent-platform`'s `db_event_subscription` module) |
 | SQS | `sqs:*` | queues prefixed `e???????????????-` |
 | STS (assume role) | `sts:AssumeRole`, `sts:TagSession`, `sts:AssumeRoleWithWebIdentity` | roles prefixed `e???????????????-` |
