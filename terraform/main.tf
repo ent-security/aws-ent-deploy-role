@@ -54,10 +54,13 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
-        Sid      = "BCMDataExportsAccess"
-        Effect   = "Allow"
-        Action   = ["bcm-data-exports:*"]
-        Resource = "arn:aws:bcm-data-exports:*:*:export/*"
+        Sid    = "BCMDataExportsAccess"
+        Effect = "Allow"
+        Action = ["bcm-data-exports:*"]
+        Resource = [
+          "arn:aws:bcm-data-exports:*:*:export/*",
+          "arn:aws:bcm-data-exports:*:*:table/*",
+        ]
       },
       {
         Sid      = "CloudWatchAccess"
@@ -125,8 +128,8 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Action = ["glue:*"]
         Resource = [
           "arn:aws:glue:*:*:catalog",
-          "arn:aws:glue:*:*:database/e???????????????-*",
-          "arn:aws:glue:*:*:table/e???????????????-*/*",
+          "arn:aws:glue:*:*:database/e???????????????*",
+          "arn:aws:glue:*:*:table/e???????????????*/*",
         ]
       },
       {
@@ -137,6 +140,7 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
           "arn:aws:iam::*:role/e???????????????-*",
           "arn:aws:iam::*:policy/e???????????????-*",
           "arn:aws:iam::*:instance-profile/e???????????????-*",
+          "arn:aws:iam::*:policy/AmazonEKS_*",
         ]
       },
       {
@@ -174,13 +178,22 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         ]
       },
       {
+        Sid      = "KMSCreateKeyAccess"
+        Effect   = "Allow"
+        Action   = ["kms:CreateKey"]
+        Resource = "*"
+      },
+      {
         Sid    = "CloudWatchLogsAccess"
         Effect = "Allow"
         Action = ["logs:*"]
         Resource = [
           "arn:aws:logs:*:*:log-group:e???????????????-*",
           "arn:aws:logs:*:*:log-group:e???????????????-*:*",
-          "arn:aws:logs:*:*:log-group:/aws/eks/e???????????????-*/*",
+          "arn:aws:logs:*:*:log-group:/aws/*/e???????????????-*",
+          "arn:aws:logs:*:*:log-group:/aws/*/e???????????????-*:*",
+          "arn:aws:logs:*:*:log-group:/????????-????-????-????-????????????/*",
+          "arn:aws:logs:*:*:log-group:/????????-????-????-????-????????????/*:*",
         ]
       },
       {
@@ -242,10 +255,13 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         ]
       },
       {
-        Sid      = "SNSAccess"
-        Effect   = "Allow"
-        Action   = ["sns:*"]
-        Resource = "arn:aws:sns:*:*:e???????????????-*"
+        Sid    = "SNSAccess"
+        Effect = "Allow"
+        Action = ["sns:*"]
+        Resource = [
+          "arn:aws:sns:*:*:e???????????????-*",
+          "arn:aws:sns:*:*:db-event-notifications",
+        ]
       },
       {
         Sid      = "SQSAccess"
