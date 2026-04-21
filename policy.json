@@ -152,6 +152,14 @@
             ]
         },
         {
+            "Sid": "IAMSessionContextAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole"
+            ],
+            "Resource": "*"
+        },
+        {
             "Sid": "IAMServiceLinkedRoleAccess",
             "Effect": "Allow",
             "Action": [
@@ -246,6 +254,14 @@
                 "arn:aws:s3:::e???????????????-*",
                 "arn:aws:s3:::e???????????????-*/*"
             ]
+        },
+        {
+            "Sid": "S3ListAllMyBucketsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets"
+            ],
+            "Resource": "*"
         },
         {
             "Sid": "SecretsManagerAccess",

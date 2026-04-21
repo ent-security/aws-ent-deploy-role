@@ -140,6 +140,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         ]
       },
       {
+        Sid      = "IAMSessionContextAccess"
+        Effect   = "Allow"
+        Action   = ["iam:GetRole"]
+        Resource = "*"
+      },
+      {
         Sid      = "IAMServiceLinkedRoleAccess"
         Effect   = "Allow"
         Action   = ["iam:CreateServiceLinkedRole"]
@@ -219,6 +225,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
           "arn:aws:s3:::e???????????????-*",
           "arn:aws:s3:::e???????????????-*/*",
         ]
+      },
+      {
+        Sid      = "S3ListAllMyBucketsAccess"
+        Effect   = "Allow"
+        Action   = ["s3:ListAllMyBuckets"]
+        Resource = "*"
       },
       {
         Sid    = "SecretsManagerAccess"

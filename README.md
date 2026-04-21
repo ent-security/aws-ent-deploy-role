@@ -199,6 +199,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
 | Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????-` |
 | IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-` |
+| IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
 | KMS | `kms:*` | aliases prefixed `e???????????????-` (keys have UUIDs) |
 | CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-` |
@@ -207,6 +208,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |
+| S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
 | Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-` or `mks` (macOS SSH keys) |
 | SNS | `sns:*` | topics prefixed `e???????????????-` |
 | SQS | `sqs:*` | queues prefixed `e???????????????-` |
