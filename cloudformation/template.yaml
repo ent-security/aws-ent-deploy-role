@@ -257,7 +257,9 @@ Resources:
           - Effect: Allow
             Principal:
               AWS: !Ref EntAwsAccountArn
-            Action: sts:AssumeRole
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
             Condition: !If
               - HasExternalId
               - StringEquals:
