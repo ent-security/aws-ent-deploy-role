@@ -212,7 +212,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |
 | S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
-| Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), or `rds!` (RDS-managed master-password secrets) |
+| Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), `rds!` (RDS-managed master-password secrets), or `grafana/<tenant-uuid>-<env>/*` (Grafana OAuth config in `platform-monitoring`) |
 | SNS | `sns:*` | topics prefixed `e???????????????-` and `db-event-notifications` (hardcoded default in `ent-platform`'s `db_event_subscription` module) |
 | SQS | `sqs:*` | queues prefixed `e???????????????-` |
 | STS (assume role) | `sts:AssumeRole`, `sts:TagSession`, `sts:AssumeRoleWithWebIdentity` | roles prefixed `e???????????????-` |
