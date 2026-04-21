@@ -209,10 +209,11 @@
             ]
         },
         {
-            "Sid": "KMSCreateKeyAccess",
+            "Sid": "KMSAccountLevelAccess",
             "Effect": "Allow",
             "Action": [
-                "kms:CreateKey"
+                "kms:CreateKey",
+                "kms:ListAliases"
             ],
             "Resource": "*"
         },
@@ -255,6 +256,14 @@
                 "arn:aws:rds:*:*:es:e???????????????-*",
                 "arn:aws:rds-db:*:*:dbuser:*/*"
             ]
+        },
+        {
+            "Sid": "RDSDescribeAccess",
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBInstances"
+            ],
+            "Resource": "*"
         },
         {
             "Sid": "ResourceGroupsAccess",

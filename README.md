@@ -203,10 +203,11 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
 | KMS | `kms:*` | aliases prefixed `e???????????????-` or `eks/e???????????????-` (keys have UUIDs) |
-| KMS (create) | `kms:CreateKey` | unscoped (action does not support resource-level permissions — the key does not exist yet) |
+| KMS (account-level) | `kms:CreateKey`, `kms:ListAliases` | unscoped (neither action supports resource-level permissions) |
 | CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-`, `/aws/*/e???????????????-*` (AWS-service-managed paths for RDS/ElastiCache/flow-logs/EKS), and `/<tenant-uuid>/*` (e.g. CloudTrail CIS-alarms log group created under `/<tenant_id>/aws/cloudtrail/…`) |
 | CloudWatch Logs (describe) | `logs:DescribeLogGroups`, `logs:DescribeLogStreams` | unscoped (describe APIs don't support resource-level permissions) |
 | RDS | `rds:*`, `rds-db:*` | DB/cluster/parameter/subnet/event resources prefixed `e???????????????-` |
+| RDS (describe) | `rds:DescribeDBInstances` | unscoped (terraform provider calls this against `db:*` rather than a specific instance ARN) |
 | Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |

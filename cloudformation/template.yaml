@@ -177,10 +177,11 @@ Resources:
               - arn:aws:kms:*:*:key/*
               - arn:aws:kms:*:*:alias/e???????????????-*
               - arn:aws:kms:*:*:alias/eks/e???????????????-*
-          - Sid: KMSCreateKeyAccess
+          - Sid: KMSAccountLevelAccess
             Effect: Allow
             Action:
               - kms:CreateKey
+              - kms:ListAliases
             Resource: '*'
           - Sid: CloudWatchLogsAccess
             Effect: Allow
@@ -211,6 +212,11 @@ Resources:
               - arn:aws:rds:*:*:subgrp:e???????????????-*
               - arn:aws:rds:*:*:es:e???????????????-*
               - arn:aws:rds-db:*:*:dbuser:*/*
+          - Sid: RDSDescribeAccess
+            Effect: Allow
+            Action:
+              - rds:DescribeDBInstances
+            Resource: '*'
           - Sid: ResourceGroupsAccess
             Effect: Allow
             Action:

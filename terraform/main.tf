@@ -189,9 +189,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         ]
       },
       {
-        Sid      = "KMSCreateKeyAccess"
-        Effect   = "Allow"
-        Action   = ["kms:CreateKey"]
+        Sid    = "KMSAccountLevelAccess"
+        Effect = "Allow"
+        Action = [
+          "kms:CreateKey",
+          "kms:ListAliases",
+        ]
         Resource = "*"
       },
       {
@@ -228,6 +231,12 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
           "arn:aws:rds:*:*:es:e???????????????-*",
           "arn:aws:rds-db:*:*:dbuser:*/*",
         ]
+      },
+      {
+        Sid      = "RDSDescribeAccess"
+        Effect   = "Allow"
+        Action   = ["rds:DescribeDBInstances"]
+        Resource = "*"
       },
       {
         Sid      = "ResourceGroupsAccess"
