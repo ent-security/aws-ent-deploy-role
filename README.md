@@ -180,41 +180,62 @@ aws-ent-deploy-role/
 
 ## Permissions
 
-This role grants full access to the following AWS services:
+This role grants scoped access to the AWS services below. Each statement is constrained in one of three ways: (a) scoped to resource ARNs that match `ent-platform`'s auto-generated name prefix, (b) retained unscoped because the AWS service does not support resource-level permissions for the calls Ent needs, or (c) filtered to a read-only or service-linked-role subset.
 
-| Service | Actions |
-|---------|---------|
-| ACM | `acm:*` |
-| Athena | `athena:*` |
-| Bedrock | `bedrock:*` |
-| BCM Data Exports | `bcm-data-exports:*` |
-| Cost and Usage Report (legacy) | `cur:*` |
-| CloudWatch | `cloudwatch:*` |
-| CloudWatch Logs | `logs:*` |
-| Cognito | `cognito-idp:*` |
-| Cost Explorer | `ce:*` |
-| EC2 | `ec2:*` |
-| ECR | `ecr:*` |
-| EKS | `eks:*` |
-| ElastiCache | `elasticache:*` |
-| ELB | `elasticloadbalancing:*` |
-| Glue | `glue:*` |
-| Grafana | `grafana:*` |
-| IAM | `iam:*` |
-| Kendra | `kendra:*` |
-| KMS | `kms:*` |
-| Lambda | `lambda:*` |
-| OpenSearch Serverless | `aoss:*` |
-| RDS | `rds:*`, `rds-db:*` |
-| Resource Groups | `resource-groups:*` |
-| Resource Tagging | `tag:*` |
-| Route 53 | `route53:*` |
-| S3 | `s3:*` |
-| SageMaker | `sagemaker:*` |
-| Secrets Manager | `secretsmanager:*` |
-| Shield | `shield:*` |
-| SNS | `sns:*` |
-| SQS | `sqs:*` |
-| STS | `sts:*` |
-| WAF | `wafv2:*` |
-| X-Ray | `xray:*` |
+| Service | Actions | Resource scope |
+|---------|---------|----------------|
+| ACM | `acm:*` | unscoped (ACM certificates have auto-generated UUIDs) |
+| Athena | `athena:*` | workgroups/datacatalogs prefixed `e???????????????-` |
+| BCM Data Exports | `bcm-data-exports:*` | export and table resource types (CUR export reads from AWS-managed `table/COST_AND_USAGE_REPORT`) |
+| Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) + AWS-owned foundation-models (needed by `CreateInferenceProfile`) |
+| Cost and Usage Report | `cur:Describe*`, `cur:Get*`, `cur:PutReportDefinition` | unscoped (BCM Data Exports' `CreateExport` internally calls the legacy `cur:PutReportDefinition` API) |
+| CloudWatch | `cloudwatch:*` | alarms prefixed `e???????????????-` |
+| EC2 | `ec2:*` | unscoped (VPC primitives don't support resource-level permissions) |
+| ECR | `ecr:*` | repositories prefixed `e???????????????-` |
+| ECR (auth token) | `ecr:GetAuthorizationToken` | unscoped (action does not support resource-level permissions) |
+| EFS | `elasticfilesystem:*` | file-systems and access-points (IDs are auto-generated like KMS keys) |
+| EKS | `eks:*` | clusters/nodegroups/addons/access-entries/pod-identity-associations prefixed `e???????????????-` |
+| EKS (addon versions) | `eks:DescribeAddonVersions` | unscoped (account-level API; `aws_eks_addon_version` data source reads it for metrics-server/adot/ebs-csi/cert-manager/pod-identity-agent) |
+| ElastiCache | `elasticache:*` | cache-clusters + replication/parameter/subnet groups prefixed `e???????????????-` |
+| ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
+| Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????` (Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
+| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers) |
+| IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
+| IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch |
+| KMS | `kms:*` | aliases prefixed `e???????????????-` or `eks/e???????????????-` (keys have UUIDs) |
+| KMS (account-level) | `kms:CreateKey`, `kms:ListAliases` | unscoped (neither action supports resource-level permissions) |
+| CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-`, `/aws/*/e???????????????-*` (AWS-service-managed paths for RDS/ElastiCache/flow-logs/EKS), and `/<tenant-uuid>/*` (e.g. CloudTrail CIS-alarms log group created under `/<tenant_id>/aws/cloudtrail/…`) |
+| CloudWatch Logs (describe) | `logs:DescribeLogGroups`, `logs:DescribeLogStreams` | unscoped (describe APIs don't support resource-level permissions) |
+| RDS | `rds:*`, `rds-db:*` | DB/cluster/parameter/subnet/event resources prefixed `e???????????????-`, plus event-subscriptions prefixed `db-event-sub-` (hardcoded default name in `ent-platform`'s `db_event_subscription` module) |
+| RDS (describe) | `rds:DescribeDBInstances` | unscoped (terraform provider calls this against `db:*` rather than a specific instance ARN) |
+| Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
+| Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
+| S3 | `s3:*` | buckets prefixed `e???????????????-` |
+| S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
+| Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), `rds!` (RDS-managed master-password secrets), or `grafana/<tenant-uuid>-<env>/*` (Grafana OAuth config in `platform-monitoring`) |
+| SNS | `sns:*` | topics prefixed `e???????????????-` and `db-event-notifications` (hardcoded default in `ent-platform`'s `db_event_subscription` module) |
+| SQS | `sqs:*` | queues prefixed `e???????????????-` |
+| STS (assume role) | `sts:AssumeRole`, `sts:TagSession`, `sts:AssumeRoleWithWebIdentity` | roles prefixed `e???????????????-` |
+| STS (identity) | `sts:GetCallerIdentity`, `sts:DecodeAuthorizationMessage`, `sts:GetAccessKeyInfo` | unscoped (these calls don't take resources) |
+| WAFv2 | `wafv2:*` | regional/global web-ACLs prefixed `e???????????????-` |
+| Resource Tagging API | `tag:*` | unscoped (multi-resource API) |
+
+### Resource scoping
+
+Most resources that Ent provisions in your account are named with an auto-generated prefix of the form:
+
+```
+e[0-9a-f]{15}-
+```
+
+(The literal letter `e`, fifteen lowercase hex characters, and a hyphen — for example `e1a2b3c4d5e6f78-`.) The prefix is a SHA-256 of the tenant, environment, and region, produced at deploy time by Ent's Deployment service. The IAM policy uses the glob `e???????????????-*` to match exactly this shape.
+
+**Cross-repo dependency:** this policy assumes the prefix generator in `ent-platform`'s `deploy/tofu/platform/regional.tf`. If that formula changes shape in a future Ent release, the policy must be updated in lockstep or new deployments will fail with `AccessDenied`.
+
+### Services not granted
+
+For transparency, the following services were intentionally excluded from this role because they are not used by Ent:
+
+AOSS (OpenSearch Serverless), Cost Explorer, Cognito IDP, Amazon Managed Grafana, Kendra, Lambda, SageMaker, Shield, X-Ray, and the write surface of Cost and Usage Reports (`cur` beyond `Describe*`/`Get*`).
+
+If you enable an Ent feature that later requires one of these, add a scoped statement for it and re-deploy.

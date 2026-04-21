@@ -26,52 +26,48 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
-        Sid      = "OpenSearchServerlessAccess"
-        Effect   = "Allow"
-        Action   = ["aoss:*"]
+        Sid    = "AthenaAccess"
+        Effect = "Allow"
+        Action = ["athena:*"]
+        Resource = [
+          "arn:aws:athena:*:*:workgroup/e???????????????-*",
+          "arn:aws:athena:*:*:datacatalog/e???????????????-*",
+        ]
+      },
+      {
+        Sid    = "BedrockAccess"
+        Effect = "Allow"
+        Action = ["bedrock:*"]
+        Resource = [
+          "arn:aws:bedrock:*:*:inference-profile/*",
+          "arn:aws:bedrock:*:*:application-inference-profile/*",
+          "arn:aws:bedrock:*::foundation-model/*",
+        ]
+      },
+      {
+        Sid    = "CostAndUsageReportAccess"
+        Effect = "Allow"
+        Action = [
+          "cur:Describe*",
+          "cur:Get*",
+          "cur:PutReportDefinition",
+        ]
         Resource = "*"
       },
       {
-        Sid      = "AthenaAccess"
-        Effect   = "Allow"
-        Action   = ["athena:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "CostAndUsageReportAccess"
-        Effect   = "Allow"
-        Action   = ["bcm-data-exports:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "CostAndUsageReportLegacyAccess"
-        Effect   = "Allow"
-        Action   = ["cur:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "BedrockAccess"
-        Effect   = "Allow"
-        Action   = ["bedrock:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "CostExplorerAccess"
-        Effect   = "Allow"
-        Action   = ["ce:*"]
-        Resource = "*"
+        Sid    = "BCMDataExportsAccess"
+        Effect = "Allow"
+        Action = ["bcm-data-exports:*"]
+        Resource = [
+          "arn:aws:bcm-data-exports:*:*:export/*",
+          "arn:aws:bcm-data-exports:*:*:table/*",
+        ]
       },
       {
         Sid      = "CloudWatchAccess"
         Effect   = "Allow"
         Action   = ["cloudwatch:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "CognitoAccess"
-        Effect   = "Allow"
-        Action   = ["cognito-idp:*"]
-        Resource = "*"
+        Resource = ["arn:aws:cloudwatch:*:*:alarm:e???????????????-*"]
       },
       {
         Sid      = "EC2Access"
@@ -83,19 +79,51 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Sid      = "ECRAccess"
         Effect   = "Allow"
         Action   = ["ecr:*"]
+        Resource = "arn:aws:ecr:*:*:repository/e???????????????-*"
+      },
+      {
+        Sid      = "ECRAuthTokenAccess"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
       },
       {
-        Sid      = "EKSAccess"
+        Sid    = "EFSAccess"
+        Effect = "Allow"
+        Action = ["elasticfilesystem:*"]
+        Resource = [
+          "arn:aws:elasticfilesystem:*:*:file-system/*",
+          "arn:aws:elasticfilesystem:*:*:access-point/*",
+        ]
+      },
+      {
+        Sid    = "EKSAccess"
+        Effect = "Allow"
+        Action = ["eks:*"]
+        Resource = [
+          "arn:aws:eks:*:*:cluster/e???????????????-*",
+          "arn:aws:eks:*:*:nodegroup/e???????????????-*/*/*",
+          "arn:aws:eks:*:*:access-entry/e???????????????-*/*",
+          "arn:aws:eks:*:*:addon/e???????????????-*/*/*",
+          "arn:aws:eks:*:*:podidentityassociation/e???????????????-*/*",
+        ]
+      },
+      {
+        Sid      = "EKSDescribeAddonVersionsAccess"
         Effect   = "Allow"
-        Action   = ["eks:*"]
+        Action   = ["eks:DescribeAddonVersions"]
         Resource = "*"
       },
       {
-        Sid      = "ElastiCacheAccess"
-        Effect   = "Allow"
-        Action   = ["elasticache:*"]
-        Resource = "*"
+        Sid    = "ElastiCacheAccess"
+        Effect = "Allow"
+        Action = ["elasticache:*"]
+        Resource = [
+          "arn:aws:elasticache:*:*:cluster:e???????????????-*",
+          "arn:aws:elasticache:*:*:replicationgroup:e???????????????-*",
+          "arn:aws:elasticache:*:*:parametergroup:e???????????????-*",
+          "arn:aws:elasticache:*:*:subnetgroup:e???????????????-*",
+        ]
       },
       {
         Sid      = "ELBAccess"
@@ -104,58 +132,115 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
-        Sid      = "GlueAccess"
+        Sid    = "GlueAccess"
+        Effect = "Allow"
+        Action = ["glue:*"]
+        Resource = [
+          "arn:aws:glue:*:*:catalog",
+          "arn:aws:glue:*:*:database/e???????????????*",
+          "arn:aws:glue:*:*:table/e???????????????*/*",
+        ]
+      },
+      {
+        Sid    = "IAMAccess"
+        Effect = "Allow"
+        Action = ["iam:*"]
+        Resource = [
+          "arn:aws:iam::*:role/e???????????????-*",
+          "arn:aws:iam::*:policy/e???????????????-*",
+          "arn:aws:iam::*:instance-profile/e???????????????-*",
+          "arn:aws:iam::*:policy/AmazonEKS_*",
+          "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/*",
+        ]
+      },
+      {
+        Sid      = "IAMSessionContextAccess"
         Effect   = "Allow"
-        Action   = ["glue:*"]
+        Action   = ["iam:GetRole"]
         Resource = "*"
       },
       {
-        Sid      = "GrafanaAccess"
+        Sid      = "IAMServiceLinkedRoleAccess"
         Effect   = "Allow"
-        Action   = ["grafana:*"]
+        Action   = ["iam:CreateServiceLinkedRole"]
+        Resource = "arn:aws:iam::*:role/aws-service-role/*"
+        Condition = {
+          StringLike = {
+            "iam:AWSServiceName" = [
+              "eks.amazonaws.com",
+              "eks-nodegroup.amazonaws.com",
+              "eks-fargate-pods.amazonaws.com",
+              "elasticloadbalancing.amazonaws.com",
+              "rds.amazonaws.com",
+              "elasticache.amazonaws.com",
+              "opensearchservice.amazonaws.com",
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "KMSAccess"
+        Effect = "Allow"
+        Action = ["kms:*"]
+        Resource = [
+          "arn:aws:kms:*:*:key/*",
+          "arn:aws:kms:*:*:alias/e???????????????-*",
+          "arn:aws:kms:*:*:alias/eks/e???????????????-*",
+        ]
+      },
+      {
+        Sid    = "KMSAccountLevelAccess"
+        Effect = "Allow"
+        Action = [
+          "kms:CreateKey",
+          "kms:ListAliases",
+        ]
         Resource = "*"
       },
       {
-        Sid      = "IAMAccess"
-        Effect   = "Allow"
-        Action   = ["iam:*"]
+        Sid    = "CloudWatchLogsAccess"
+        Effect = "Allow"
+        Action = ["logs:*"]
+        Resource = [
+          "arn:aws:logs:*:*:log-group:e???????????????-*",
+          "arn:aws:logs:*:*:log-group:/aws/*/e???????????????-*",
+          "arn:aws:logs:*:*:log-group:/????????-????-????-????-????????????/*",
+        ]
+      },
+      {
+        Sid    = "CloudWatchLogsDescribeAccess"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+        ]
         Resource = "*"
       },
       {
-        Sid      = "KendraAccess"
-        Effect   = "Allow"
-        Action   = ["kendra:*"]
-        Resource = "*"
+        Sid    = "RDSAccess"
+        Effect = "Allow"
+        Action = ["rds:*", "rds-db:*"]
+        Resource = [
+          "arn:aws:rds:*:*:db:e???????????????-*",
+          "arn:aws:rds:*:*:cluster:e???????????????-*",
+          "arn:aws:rds:*:*:pg:e???????????????-*",
+          "arn:aws:rds:*:*:subgrp:e???????????????-*",
+          "arn:aws:rds:*:*:es:e???????????????-*",
+          "arn:aws:rds:*:*:es:db-event-sub-*",
+          "arn:aws:rds-db:*:*:dbuser:*/*",
+        ]
       },
       {
-        Sid      = "KMSAccess"
+        Sid      = "RDSDescribeAccess"
         Effect   = "Allow"
-        Action   = ["kms:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "LambdaAccess"
-        Effect   = "Allow"
-        Action   = ["lambda:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "CloudWatchLogsAccess"
-        Effect   = "Allow"
-        Action   = ["logs:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "RDSAccess"
-        Effect   = "Allow"
-        Action   = ["rds:*", "rds-db:*"]
+        Action   = ["rds:DescribeDBInstances"]
         Resource = "*"
       },
       {
         Sid      = "ResourceGroupsAccess"
         Effect   = "Allow"
         Action   = ["resource-groups:*"]
-        Resource = "*"
+        Resource = "arn:aws:resource-groups:*:*:group/e???????????????-*"
       },
       {
         Sid      = "Route53Access"
@@ -164,46 +249,74 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = "*"
       },
       {
-        Sid      = "S3Access"
+        Sid    = "S3Access"
+        Effect = "Allow"
+        Action = ["s3:*"]
+        Resource = [
+          "arn:aws:s3:::e???????????????-*",
+          "arn:aws:s3:::e???????????????-*/*",
+        ]
+      },
+      {
+        Sid      = "S3ListAllMyBucketsAccess"
         Effect   = "Allow"
-        Action   = ["s3:*"]
+        Action   = ["s3:ListAllMyBuckets"]
         Resource = "*"
       },
       {
-        Sid      = "SageMakerAccess"
-        Effect   = "Allow"
-        Action   = ["sagemaker:*"]
-        Resource = "*"
+        Sid    = "SecretsManagerAccess"
+        Effect = "Allow"
+        Action = ["secretsmanager:*"]
+        Resource = [
+          "arn:aws:secretsmanager:*:*:secret:e???????????????-*",
+          "arn:aws:secretsmanager:*:*:secret:mks*",
+          "arn:aws:secretsmanager:*:*:secret:rds!*",
+          "arn:aws:secretsmanager:*:*:secret:grafana/????????-????-????-????-????????????-*/*",
+        ]
       },
       {
-        Sid      = "SecretsManagerAccess"
-        Effect   = "Allow"
-        Action   = ["secretsmanager:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "ShieldAccess"
-        Effect   = "Allow"
-        Action   = ["shield:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "SNSAccess"
-        Effect   = "Allow"
-        Action   = ["sns:*"]
-        Resource = "*"
+        Sid    = "SNSAccess"
+        Effect = "Allow"
+        Action = ["sns:*"]
+        Resource = [
+          "arn:aws:sns:*:*:e???????????????-*",
+          "arn:aws:sns:*:*:db-event-notifications",
+        ]
       },
       {
         Sid      = "SQSAccess"
         Effect   = "Allow"
         Action   = ["sqs:*"]
+        Resource = "arn:aws:sqs:*:*:e???????????????-*"
+      },
+      {
+        Sid = "STSAssumeRoleAccess"
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession",
+          "sts:AssumeRoleWithWebIdentity",
+        ]
+        Resource = "arn:aws:iam::*:role/e???????????????-*"
+      },
+      {
+        Sid = "STSIdentityAccess"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity",
+          "sts:DecodeAuthorizationMessage",
+          "sts:GetAccessKeyInfo",
+        ]
         Resource = "*"
       },
       {
-        Sid      = "STSAccess"
-        Effect   = "Allow"
-        Action   = ["sts:*"]
-        Resource = "*"
+        Sid    = "WAFv2Access"
+        Effect = "Allow"
+        Action = ["wafv2:*"]
+        Resource = [
+          "arn:aws:wafv2:*:*:regional/webacl/e???????????????-*/*",
+          "arn:aws:wafv2:*:*:global/webacl/e???????????????-*/*",
+        ]
       },
       {
         Sid      = "TaggingAccess"
@@ -211,18 +324,6 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Action   = ["tag:*"]
         Resource = "*"
       },
-      {
-        Sid      = "WAFAccess"
-        Effect   = "Allow"
-        Action   = ["wafv2:*"]
-        Resource = "*"
-      },
-      {
-        Sid      = "XRayAccess"
-        Effect   = "Allow"
-        Action   = ["xray:*"]
-        Resource = "*"
-      }
     ]
   })
 }
