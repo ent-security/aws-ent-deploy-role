@@ -59,6 +59,7 @@ Resources:
             Resource:
               - arn:aws:bedrock:*:*:inference-profile/*
               - arn:aws:bedrock:*:*:application-inference-profile/*
+              - arn:aws:bedrock:*::foundation-model/*
           - Sid: CostAndUsageReportReadAccess
             Effect: Allow
             Action:

@@ -28,7 +28,8 @@
             ],
             "Resource": [
                 "arn:aws:bedrock:*:*:inference-profile/*",
-                "arn:aws:bedrock:*:*:application-inference-profile/*"
+                "arn:aws:bedrock:*:*:application-inference-profile/*",
+                "arn:aws:bedrock:*::foundation-model/*"
             ]
         },
         {

@@ -41,6 +41,7 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
         Resource = [
           "arn:aws:bedrock:*:*:inference-profile/*",
           "arn:aws:bedrock:*:*:application-inference-profile/*",
+          "arn:aws:bedrock:*::foundation-model/*",
         ]
       },
       {

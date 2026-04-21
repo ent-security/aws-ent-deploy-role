@@ -187,7 +187,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | ACM | `acm:*` | unscoped (ACM certificates have auto-generated UUIDs) |
 | Athena | `athena:*` | workgroups/datacatalogs prefixed `e???????????????-` |
 | BCM Data Exports | `bcm-data-exports:*` | export resource type (IDs are UUIDs) |
-| Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) |
+| Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) + AWS-owned foundation-models (needed by `CreateInferenceProfile`) |
 | Cost and Usage Report (read-only) | `cur:Describe*`, `cur:Get*` | unscoped |
 | CloudWatch | `cloudwatch:*` | alarms prefixed `e???????????????-` |
 | EC2 | `ec2:*` | unscoped (VPC primitives don't support resource-level permissions) |
