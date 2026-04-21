@@ -53,6 +53,7 @@ tags = {
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `ent_aws_account_arn` | Ent's AWS account ARN | (provided by module) | No |
+| `role_sts_external_id` | STS ExternalId condition value. When non-empty, Ent Home must supply this value in its AssumeRole call. Empty string means no ExternalId constraint (not recommended for production). | `""` | No |
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` | No |
 | `role_path` | Path of IAM role | `/` | No |
 | `role_description` | IAM Role description | (provided by module) | No |

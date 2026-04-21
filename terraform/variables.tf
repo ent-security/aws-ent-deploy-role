@@ -4,6 +4,12 @@ variable "ent_aws_account_arn" {
   description = "Ent's AWS account ARN"
 }
 
+variable "role_sts_external_id" {
+  type        = string
+  default     = ""
+  description = "STS ExternalId condition value. When set, Ent Home must supply this value in its AssumeRole call. Empty string means no ExternalId constraint (not recommended for production)."
+}
+
 variable "role_name" {
   description = "IAM role name"
   type        = string
