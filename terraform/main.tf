@@ -174,6 +174,7 @@ resource "aws_iam_policy" "ent_deploy_permissions" {
               "rds.amazonaws.com",
               "elasticache.amazonaws.com",
               "opensearchservice.amazonaws.com",
+              "backup.amazonaws.com",
             ]
           }
         }
