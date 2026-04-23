@@ -192,7 +192,8 @@
                         "rds.amazonaws.com",
                         "elasticache.amazonaws.com",
                         "opensearchservice.amazonaws.com",
-                        "backup.amazonaws.com"
+                        "backup.amazonaws.com",
+                        "elasticfilesystem.amazonaws.com"
                     ]
                 }
             }

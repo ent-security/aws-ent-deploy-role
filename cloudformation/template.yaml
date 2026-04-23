@@ -170,6 +170,7 @@ Resources:
                   - elasticache.amazonaws.com
                   - opensearchservice.amazonaws.com
                   - backup.amazonaws.com
+                  - elasticfilesystem.amazonaws.com
           - Sid: KMSAccess
             Effect: Allow
             Action:
