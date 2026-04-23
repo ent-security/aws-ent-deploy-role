@@ -39,7 +39,7 @@ export class EntDeployRoleStack extends cdk.Stack {
     const repoRoot = path.resolve(__dirname, '..', '..', '..');
     const policyJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8'));
     const trustJsonRaw = fs.readFileSync(path.join(repoRoot, 'role.json'), 'utf-8');
-    const trustJson = JSON.parse(trustJsonRaw.replace('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
+    const trustJson = JSON.parse(trustJsonRaw.replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
 
     const managedPolicy = new iam.CfnManagedPolicy(this, 'EntHomeAccessPolicy', {
       managedPolicyName: DEFAULTS.policyName,

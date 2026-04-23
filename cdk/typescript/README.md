@@ -25,6 +25,7 @@ Pass configuration via `-c key=value` flags on the CDK CLI, or set them in `cdk.
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` |
 | `role_path` | IAM role path | `/` |
 | `role_description` | IAM role description | (matches Terraform default) |
+| `tags` | Map of tags to apply to the role (pass via `-c tags='{"key":"value"}'`) | `{}` |
 
 ## Deploy
 

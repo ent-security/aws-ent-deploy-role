@@ -1,9 +1,9 @@
 import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { EntDeployRoleStack } from '../lib/ent-deploy-role-stack';
+import { EntDeployRoleStack, EntDeployRoleStackProps } from '../lib/ent-deploy-role-stack';
 
 describe('EntDeployRoleStack', () => {
-  const makeTemplate = (props = {}) => {
+  const makeTemplate = (props: Partial<EntDeployRoleStackProps> = {}) => {
     const app = new cdk.App();
     const stack = new EntDeployRoleStack(app, 'TestStack', {
       entAwsAccountArn: 'arn:aws:iam::123456789012:root',
