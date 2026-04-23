@@ -21,7 +21,9 @@ After you apply this terraform, it will output the Role ARN that you can paste i
 
 ### Deploying with Terraform / OpenTofu
 
-If you want to deploy the Terraform module directly (e.g. from a local clone), you can use either Terraform or OpenTofu:
+The Terraform module in this repository works unmodified with [OpenTofu](https://opentofu.org/) — the open-source fork of Terraform. Anywhere the instructions below say `terraform`, you can substitute `tofu` and get the same result.
+
+If you want to deploy the module directly (e.g. from a local clone), you can use either tool:
 
 ```bash
 cd terraform/
