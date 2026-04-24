@@ -105,6 +105,55 @@ Or deploy via the AWS Console:
 | `RoleName` | The name of the role |
 | `PolicyArn` | The ARN of the policy |
 
+## CDK Usage
+
+This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the authoritative `policy.json` and `role.json` at synthesis time.
+
+### CDK TypeScript
+
+```bash
+cd cdk/typescript
+npm install
+npx cdk bootstrap   # one-time per account/region
+npx cdk deploy \
+  -c ent_aws_account_arn=arn:aws:iam::123456789012:root \
+  -c role_name=HomeProdAssumeAdmin
+```
+
+See [`cdk/typescript/README.md`](./cdk/typescript/README.md) for full usage.
+
+### CDK Python
+
+```bash
+cd cdk/python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cdk bootstrap
+cdk deploy \
+  -c ent_aws_account_arn=arn:aws:iam::123456789012:root \
+  -c role_name=HomeProdAssumeAdmin
+```
+
+See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
+
+### CDK Configuration
+
+| Key | Description | Default |
+|---|---|---|
+| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `role_name` | IAM role name | `HomeProdAssumeAdmin` |
+| `role_path` | IAM role path | `/` |
+| `role_description` | IAM role description | (matches Terraform default) |
+
+### CDK Outputs
+
+| Output | Description |
+|---|---|
+| `RoleArn` | The ARN of the role |
+| `RoleName` | The name of the role |
+| `PolicyArn` | The ARN of the policy |
+
 ## AWS CLI Usage
 
 Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
