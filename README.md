@@ -154,6 +154,66 @@ See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
 | `RoleName` | The name of the role |
 | `PolicyArn` | The ARN of the policy |
 
+## Pulumi Usage
+
+This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the authoritative `policy.json` and `role.json` at deploy time.
+
+### Pulumi TypeScript
+
+```bash
+cd pulumi/typescript
+npm install
+pulumi stack init dev
+pulumi config set ent-deploy-role:entAwsAccountArn arn:aws:iam::123456789012:root
+pulumi up
+```
+
+See [`pulumi/typescript/README.md`](./pulumi/typescript/README.md) for full usage.
+
+### Pulumi Python
+
+```bash
+cd pulumi/python
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pulumi stack init dev
+pulumi config set ent-deploy-role:entAwsAccountArn arn:aws:iam::123456789012:root
+pulumi up
+```
+
+See [`pulumi/python/README.md`](./pulumi/python/README.md) for full usage.
+
+### Pulumi Go
+
+```bash
+cd pulumi/go
+go mod tidy
+pulumi stack init dev
+pulumi config set ent-deploy-role:entAwsAccountArn arn:aws:iam::123456789012:root
+pulumi up
+```
+
+See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
+
+### Pulumi Configuration
+
+| Key | Description | Default |
+|---|---|---|
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `roleName` | IAM role name | `HomeProdAssumeAdmin` |
+| `rolePath` | IAM role path | `/` |
+| `roleDescription` | IAM role description | (matches Terraform default) |
+| `tags` | Map of tags (set with `--path`) | `{}` |
+
+### Pulumi Outputs
+
+| Output | Description |
+|---|---|
+| `roleArn` | The ARN of the role |
+| `roleName` | The name of the role |
+| `policyArn` | The ARN of the policy |
+
 ## AWS CLI Usage
 
 Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
