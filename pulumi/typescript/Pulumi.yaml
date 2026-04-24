@@ -1,0 +1,6 @@
+name: ent-deploy-role
+description: Ent Home deployment role (Pulumi TypeScript)
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
