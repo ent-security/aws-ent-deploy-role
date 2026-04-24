@@ -1,6 +1,6 @@
 # aws-ent-deploy-role
 
-Infrastructure as Code to create the Ent Security Deployment Role in AWS. Supports both Terraform and CloudFormation.
+Infrastructure as Code to create the Ent Security Deployment Role in AWS. Supports Terraform (including OpenTofu), CloudFormation, AWS CDK (TypeScript and Python), and Pulumi (TypeScript, Python, and Go).
 
 ## Terraform Usage
 
@@ -273,12 +273,37 @@ The following steps demonstrate how to connect AWS in Ent when using this module
 4. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
 5. Click the `Save & Test Connection` button
 
+### CDK
+
+1. Open the AWS connection settings page in Ent
+2. Pick a CDK variant (TypeScript or Python) and follow its README to install prerequisites
+3. Run `cdk deploy -c ent_aws_account_arn=<your-arn> -c role_name=<name>`
+4. Copy the `RoleArn` stack output
+5. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
+6. Click the `Save & Test Connection` button
+
+### Pulumi
+
+1. Open the AWS connection settings page in Ent
+2. Pick a Pulumi variant (TypeScript, Python, or Go) and follow its README to install prerequisites
+3. Run `pulumi config set ent-deploy-role:entAwsAccountArn <your-arn>` then `pulumi up`
+4. Copy the `roleArn` stack output
+5. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
+6. Click the `Save & Test Connection` button
+
 ## Directory Structure
 
 ```
 aws-ent-deploy-role/
+├── cdk/
+│   ├── typescript/
+│   └── python/
 ├── cloudformation/
 │   └── template.yaml
+├── pulumi/
+│   ├── typescript/
+│   ├── python/
+│   └── go/
 ├── terraform/
 │   ├── main.tf
 │   ├── variables.tf
