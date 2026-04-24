@@ -1,0 +1,3 @@
+name: ent-deploy-role
+description: Ent Home deployment role (Pulumi Go)
+runtime: go
