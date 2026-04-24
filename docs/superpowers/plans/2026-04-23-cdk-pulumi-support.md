@@ -159,9 +159,9 @@ git commit -m "Document first-class OpenTofu compatibility in README"
 ```json
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2021",
     "module": "commonjs",
-    "lib": ["es2020"],
+    "lib": ["es2021"],
     "declaration": true,
     "strict": true,
     "noImplicitAny": true,
@@ -332,7 +332,7 @@ export class EntDeployRoleStack extends cdk.Stack {
     const repoRoot = path.resolve(__dirname, '..', '..', '..');
     const policyJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8'));
     const trustJsonRaw = fs.readFileSync(path.join(repoRoot, 'role.json'), 'utf-8');
-    const trustJson = JSON.parse(trustJsonRaw.replace('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
+    const trustJson = JSON.parse(trustJsonRaw.replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
 
     const managedPolicy = new iam.CfnManagedPolicy(this, 'EntHomeAccessPolicy', {
       managedPolicyName: DEFAULTS.policyName,
@@ -651,6 +651,7 @@ class EntDeployRoleStack(cdk.Stack):
         policy_json = json.loads((repo_root / "policy.json").read_text())
         trust_raw = (repo_root / "role.json").read_text()
         trust_json = json.loads(trust_raw.replace("<ENT_AWS_ACCOUNT_ARN>", ent_aws_account_arn))
+        # Note: Python str.replace replaces all occurrences by default (no count arg)
 
         managed_policy = iam.CfnManagedPolicy(
             self,
@@ -855,7 +856,7 @@ runtime:
   "compilerOptions": {
     "strict": true,
     "outDir": "bin",
-    "target": "es2020",
+    "target": "es2021",
     "module": "commonjs",
     "moduleResolution": "node",
     "sourceMap": true,
@@ -966,7 +967,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const policyJson = fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8');
 const trustJson = fs
   .readFileSync(path.join(repoRoot, 'role.json'), 'utf-8')
-  .replace('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn);
+  .replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn);
 
 export const policy = new aws.iam.Policy('EntHomeAccess', {
   name: 'EntHomeAccess',
