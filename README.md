@@ -1,6 +1,6 @@
 # aws-ent-deploy-role
 
-Infrastructure as Code to create the Ent Security Deployment Role in AWS. Supports both Terraform and CloudFormation.
+Infrastructure as Code to create the Ent Security Deployment Role in AWS. Supports Terraform (including OpenTofu), CloudFormation, AWS CDK (TypeScript and Python), and Pulumi (TypeScript, Python, and Go).
 
 ## Terraform Usage
 
@@ -21,7 +21,9 @@ After you apply this terraform, it will output the Role ARN that you can paste i
 
 ### Deploying with Terraform / OpenTofu
 
-If you want to deploy the Terraform module directly (e.g. from a local clone), you can use either Terraform or OpenTofu:
+The Terraform module in this repository works unmodified with [OpenTofu](https://opentofu.org/) — the open-source fork of Terraform. Anywhere the instructions below say `terraform`, you can substitute `tofu` and get the same result.
+
+If you want to deploy the module directly (e.g. from a local clone), you can use either tool:
 
 ```bash
 cd terraform/
@@ -103,6 +105,115 @@ Or deploy via the AWS Console:
 | `RoleName` | The name of the role |
 | `PolicyArn` | The ARN of the policy |
 
+## CDK Usage
+
+This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the authoritative `policy.json` and `role.json` at synthesis time.
+
+### CDK TypeScript
+
+```bash
+cd cdk/typescript
+npm install
+npx cdk bootstrap   # one-time per account/region
+npx cdk deploy \
+  -c ent_aws_account_arn=arn:aws:iam::123456789012:root \
+  -c role_name=HomeProdAssumeAdmin
+```
+
+See [`cdk/typescript/README.md`](./cdk/typescript/README.md) for full usage.
+
+### CDK Python
+
+```bash
+cd cdk/python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cdk bootstrap
+cdk deploy \
+  -c ent_aws_account_arn=arn:aws:iam::123456789012:root \
+  -c role_name=HomeProdAssumeAdmin
+```
+
+See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
+
+### CDK Configuration
+
+| Key | Description | Default |
+|---|---|---|
+| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `role_name` | IAM role name | `HomeProdAssumeAdmin` |
+| `role_path` | IAM role path | `/` |
+| `role_description` | IAM role description | (matches Terraform default) |
+
+### CDK Outputs
+
+| Output | Description |
+|---|---|
+| `RoleArn` | The ARN of the role |
+| `RoleName` | The name of the role |
+| `PolicyArn` | The ARN of the policy |
+
+## Pulumi Usage
+
+This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the authoritative `policy.json` and `role.json` at deploy time.
+
+### Pulumi TypeScript
+
+```bash
+cd pulumi/typescript
+npm install
+pulumi stack init dev
+pulumi config set ent-deploy-role:entAwsAccountArn arn:aws:iam::123456789012:root
+pulumi up
+```
+
+See [`pulumi/typescript/README.md`](./pulumi/typescript/README.md) for full usage.
+
+### Pulumi Python
+
+```bash
+cd pulumi/python
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pulumi stack init dev
+pulumi config set ent-deploy-role:entAwsAccountArn arn:aws:iam::123456789012:root
+pulumi up
+```
+
+See [`pulumi/python/README.md`](./pulumi/python/README.md) for full usage.
+
+### Pulumi Go
+
+```bash
+cd pulumi/go
+go mod tidy
+pulumi stack init dev
+pulumi config set ent-deploy-role:entAwsAccountArn arn:aws:iam::123456789012:root
+pulumi up
+```
+
+See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
+
+### Pulumi Configuration
+
+| Key | Description | Default |
+|---|---|---|
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `roleName` | IAM role name | `HomeProdAssumeAdmin` |
+| `rolePath` | IAM role path | `/` |
+| `roleDescription` | IAM role description | (matches Terraform default) |
+| `tags` | Map of tags (set with `--path`) | `{}` |
+
+### Pulumi Outputs
+
+| Output | Description |
+|---|---|
+| `roleArn` | The ARN of the role |
+| `roleName` | The name of the role |
+| `policyArn` | The ARN of the policy |
+
 ## AWS CLI Usage
 
 Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
@@ -162,12 +273,37 @@ The following steps demonstrate how to connect AWS in Ent when using this module
 4. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
 5. Click the `Save & Test Connection` button
 
+### CDK
+
+1. Open the AWS connection settings page in Ent
+2. Pick a CDK variant (TypeScript or Python) and follow its README to install prerequisites
+3. Run `cdk deploy -c ent_aws_account_arn=<your-arn> -c role_name=<name>`
+4. Copy the `RoleArn` stack output
+5. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
+6. Click the `Save & Test Connection` button
+
+### Pulumi
+
+1. Open the AWS connection settings page in Ent
+2. Pick a Pulumi variant (TypeScript, Python, or Go) and follow its README to install prerequisites
+3. Run `pulumi config set ent-deploy-role:entAwsAccountArn <your-arn>` then `pulumi up`
+4. Copy the `roleArn` stack output
+5. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
+6. Click the `Save & Test Connection` button
+
 ## Directory Structure
 
 ```
 aws-ent-deploy-role/
+├── cdk/
+│   ├── typescript/
+│   └── python/
 ├── cloudformation/
 │   └── template.yaml
+├── pulumi/
+│   ├── typescript/
+│   ├── python/
+│   └── go/
 ├── terraform/
 │   ├── main.tf
 │   ├── variables.tf

@@ -1,0 +1,20 @@
+{
+  "name": "pulumi-ent-deploy-role",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "test": "NODE_OPTIONS='--no-experimental-strip-types' mocha -r ts-node/register \"tests/**/*.spec.ts\""
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^20.0.0",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.0.0",
+    "@pulumi/pulumi": "^3.100.0"
+  }
+}

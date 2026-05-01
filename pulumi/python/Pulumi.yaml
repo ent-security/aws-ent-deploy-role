@@ -1,0 +1,6 @@
+name: ent-deploy-role
+description: Ent Home deployment role (Pulumi Python)
+runtime:
+  name: python
+  options:
+    virtualenv: venv
