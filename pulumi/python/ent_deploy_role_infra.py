@@ -5,7 +5,7 @@ import pulumi_aws as aws
 
 config = pulumi.Config()
 
-ent_aws_account_arn = config.get("entAwsAccountArn") or "arn:aws:iam::000000000000:root"
+ent_aws_account_arn = config.get("entAwsAccountArn") or "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
 role_name = config.get("roleName") or "HomeProdAssumeAdmin"
 role_path = config.get("rolePath") or "/"
 role_description = (

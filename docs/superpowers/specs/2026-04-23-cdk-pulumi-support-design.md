@@ -76,7 +76,7 @@ Each template exposes the same knobs as Terraform's `variables.tf`, via the idio
 
 | Knob | Default |
 |---|---|
-| `ent_aws_account_arn` | `arn:aws:iam::000000000000:root` |
+| `ent_aws_account_arn` | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `role_name` | `HomeProdAssumeAdmin` |
 | `role_path` | `/` |
 | `role_description` | Matches Terraform default |

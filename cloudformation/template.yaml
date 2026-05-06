@@ -4,7 +4,7 @@ Description: IAM Role for cross-account access with full permissions for deploym
 Parameters:
   EntAwsAccountArn:
     Type: String
-    Default: arn:aws:iam::000000000000:root
+    Default: arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005
     Description: The AWS ARN that can assume this role
 
   RoleStsExternalId:

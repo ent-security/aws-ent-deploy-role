@@ -6,7 +6,7 @@ import * as aws from '@pulumi/aws';
 const config = new pulumi.Config();
 
 const entAwsAccountArn =
-  config.get('entAwsAccountArn') ?? 'arn:aws:iam::000000000000:root';
+  config.get('entAwsAccountArn') ?? 'arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005';
 const roleName = config.get('roleName') ?? 'HomeProdAssumeAdmin';
 const rolePath = config.get('rolePath') ?? '/';
 const roleDescription =

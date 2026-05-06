@@ -21,7 +21,7 @@ Pass configuration via `-c key=value` flags on the CDK CLI, or set them in `cdk.
 
 | Key | Description | Default |
 |---|---|---|
-| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` |
 | `role_path` | IAM role path | `/` |
 | `role_description` | IAM role description | (matches Terraform default) |

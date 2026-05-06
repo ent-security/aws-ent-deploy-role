@@ -306,7 +306,7 @@ export interface EntDeployRoleStackProps extends cdk.StackProps {
 }
 
 const DEFAULTS = {
-  entAwsAccountArn: 'arn:aws:iam::000000000000:root',
+  entAwsAccountArn: 'arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005',
   roleName: 'HomeProdAssumeAdmin',
   rolePath: '/',
   roleDescription: 'Role that allows Ent Home to assume AdministratorAccess role',
@@ -427,7 +427,7 @@ Pass configuration via `-c key=value` flags on the CDK CLI, or set them in `cdk.
 
 | Key | Description | Default |
 |---|---|---|
-| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` |
 | `role_path` | IAM role path | `/` |
 | `role_description` | IAM role description | (matches Terraform default) |
@@ -613,7 +613,7 @@ from aws_cdk import aws_iam as iam
 from constructs import Construct
 
 _DEFAULTS = {
-    "ent_aws_account_arn": "arn:aws:iam::000000000000:root",
+    "ent_aws_account_arn": "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005",
     "role_name": "HomeProdAssumeAdmin",
     "role_path": "/",
     "role_description": "Role that allows Ent Home to assume AdministratorAccess role",
@@ -763,7 +763,7 @@ Pass configuration via `-c key=value` flags on the CDK CLI.
 
 | Key | Description | Default |
 |---|---|---|
-| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` |
 | `role_path` | IAM role path | `/` |
 | `role_description` | IAM role description | (matches Terraform default) |
@@ -954,7 +954,7 @@ import * as aws from '@pulumi/aws';
 const config = new pulumi.Config();
 
 const entAwsAccountArn =
-  config.get('entAwsAccountArn') ?? 'arn:aws:iam::000000000000:root';
+  config.get('entAwsAccountArn') ?? 'arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005';
 const roleName = config.get('roleName') ?? 'HomeProdAssumeAdmin';
 const rolePath = config.get('rolePath') ?? '/';
 const roleDescription =
@@ -1033,7 +1033,7 @@ pulumi config set ent-deploy-role:roleName HomeProdAssumeAdmin
 
 | Key | Description | Default |
 |---|---|---|
-| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `roleName` | IAM role name | `HomeProdAssumeAdmin` |
 | `rolePath` | IAM role path | `/` |
 | `roleDescription` | IAM role description | (matches Terraform default) |
@@ -1198,7 +1198,7 @@ import pulumi_aws as aws
 
 config = pulumi.Config()
 
-ent_aws_account_arn = config.get("entAwsAccountArn") or "arn:aws:iam::000000000000:root"
+ent_aws_account_arn = config.get("entAwsAccountArn") or "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
 role_name = config.get("roleName") or "HomeProdAssumeAdmin"
 role_path = config.get("rolePath") or "/"
 role_description = (
@@ -1296,7 +1296,7 @@ pulumi config set ent-deploy-role:roleName HomeProdAssumeAdmin
 
 | Key | Description | Default |
 |---|---|---|
-| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `roleName` | IAM role name | `HomeProdAssumeAdmin` |
 | `rolePath` | IAM role path | `/` |
 | `roleDescription` | IAM role description | (matches Terraform default) |
@@ -1476,7 +1476,7 @@ type deployed struct {
 }
 
 const (
-	defaultEntAwsAccountArn = "arn:aws:iam::000000000000:root"
+	defaultEntAwsAccountArn = "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
 	defaultRoleName         = "HomeProdAssumeAdmin"
 	defaultRolePath         = "/"
 	defaultRoleDescription  = "Role that allows Ent Home to assume AdministratorAccess role"
@@ -1629,7 +1629,7 @@ pulumi config set ent-deploy-role:roleName HomeProdAssumeAdmin
 
 | Key | Description | Default |
 |---|---|---|
-| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `roleName` | IAM role name | `HomeProdAssumeAdmin` |
 | `rolePath` | IAM role path | `/` |
 | `roleDescription` | IAM role description | (matches Terraform default) |
@@ -1711,7 +1711,7 @@ See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
 
 | Key | Description | Default |
 |---|---|---|
-| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `ent_aws_account_arn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` |
 | `role_path` | IAM role path | `/` |
 | `role_description` | IAM role description | (matches Terraform default) |
@@ -1790,7 +1790,7 @@ See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
 
 | Key | Description | Default |
 |---|---|---|
-| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `roleName` | IAM role name | `HomeProdAssumeAdmin` |
 | `rolePath` | IAM role path | `/` |
 | `roleDescription` | IAM role description | (matches Terraform default) |
