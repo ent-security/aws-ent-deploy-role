@@ -27,7 +27,7 @@ pulumi config set roleName HomeProdAssumeAdmin   # optional
 
 | Key | Description | Default |
 |---|---|---|
-| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::000000000000:root` |
+| `entAwsAccountArn` | Ent's AWS account ARN | `arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005` |
 | `roleName` | IAM role name | `HomeProdAssumeAdmin` |
 | `rolePath` | IAM role path | `/` |
 | `roleDescription` | IAM role description | (matches Terraform default) |

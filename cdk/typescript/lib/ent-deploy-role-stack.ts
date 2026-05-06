@@ -13,7 +13,7 @@ export interface EntDeployRoleStackProps extends cdk.StackProps {
 }
 
 const DEFAULTS = {
-  entAwsAccountArn: 'arn:aws:iam::000000000000:root',
+  entAwsAccountArn: 'arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005',
   roleName: 'HomeProdAssumeAdmin',
   rolePath: '/',
   roleDescription: 'Role that allows Ent Home to assume AdministratorAccess role',

@@ -1,6 +1,6 @@
 variable "ent_aws_account_arn" {
   type        = string
-  default     = "arn:aws:iam::000000000000:root"
+  default     = "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
   description = "Ent's AWS account ARN"
 }
 
