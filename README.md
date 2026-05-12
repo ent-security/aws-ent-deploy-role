@@ -17,7 +17,7 @@ output "ent_deployment_role" {
 }
 ```
 
-After you apply this terraform, it will output the Role ARN that you can paste into the AWS connection panel in Ent to initiate the connection.
+After you apply this terraform, it will output the Role ARN. Send the Role ARN — and the value you used for `role_sts_external_id`, if any — to your Ent contact (the engineer or sales rep who shared the deploy instructions, or `support@ent.ai`). Ent uses the ARN and ExternalId to assume the role and start your tenant deployment.
 
 ### Deploying with Terraform / OpenTofu
 
@@ -53,6 +53,7 @@ tags = {
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `ent_aws_account_arn` | Ent's AWS account ARN | (provided by module) | No |
+| `role_sts_external_id` | STS ExternalId condition value. When non-empty, Ent Home must supply this value in its AssumeRole call. Empty string means no ExternalId constraint (not recommended for production). | `""` | No |
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` | No |
 | `role_path` | Path of IAM role | `/` | No |
 | `role_description` | IAM Role description | (provided by module) | No |
@@ -93,6 +94,7 @@ Or deploy via the AWS Console:
 | Parameter | Description | Default | Required |
 |-----------|-------------|---------|----------|
 | `EntAwsAccountArn` | The AWS ARN that can assume this role | (provided by template) | No |
+| `RoleStsExternalId` | STS ExternalId condition value. When non-empty, Ent Home must supply this value in its AssumeRole call. | `""` | No |
 | `RoleName` | IAM role name | `HomeProdAssumeAdmin` | No |
 | `RolePath` | Path of IAM role | `/` | No |
 | `RoleDescription` | IAM Role description | (provided by template) | No |
@@ -104,6 +106,22 @@ Or deploy via the AWS Console:
 | `RoleArn` | The ARN of the role |
 | `RoleName` | The name of the role |
 | `PolicyArn` | The ARN of the policy |
+
+### CloudFormation (auto-callback variant)
+
+`cloudformation/template-autocomplete.yaml` is a sibling template that creates the same IAM role and policy as `template.yaml` and additionally bundles a one-shot custom-resource Lambda. On stack creation the Lambda HMAC-signs the new role's ARN and POSTs it back to Ent so the tenant deployment starts automatically — no manual hand-off of the Role ARN.
+
+This variant is intended to be launched from a Launch Stack URL emailed to you by Ent. The URL pre-fills the `EntCallbackUrl` and `EntWebhookSecret` parameters; without them the Lambda has nowhere to call back to. **Do not deploy this template manually.** If you are deploying by hand, use `template.yaml` instead and email the Role ARN back as described above.
+
+Extra parameters (in addition to those listed in [CloudFormation Parameters](#cloudformation-parameters)):
+
+| Parameter | Description | Default | Required |
+|-----------|-------------|---------|----------|
+| `EntCallbackUrl` | HTTPS URL Ent expects the stack-creation callback to POST to. Pre-filled by the Launch Stack URL. | — | Yes |
+| `EntWebhookSecret` | Per-deal HMAC secret used to sign the callback POST. `NoEcho`; pre-filled by the Launch Stack URL. | — | Yes |
+| `EntTenantName` | Display name for this Ent tenant. Pre-filled from your survey response, but editable on the AWS Console review screen. | `""` | No |
+
+The Lambda code is short enough to audit before clicking Create stack — see `cloudformation/template-autocomplete.yaml`. It only runs on the `Create` request type, signals `CFN_FAILED` (with a retry message) on any non-2xx response from Ent so the customer is never left with a silent `CREATE_COMPLETE`-with-no-handshake, and is bounded by `signal.alarm(45)` plus an outer Lambda `Timeout: 60` to guarantee the stack never hangs in `CREATE_IN_PROGRESS`.
 
 ## CDK Usage
 
@@ -252,54 +270,61 @@ aws iam attach-role-policy \
 
 ## Setup
 
-The following steps demonstrate how to connect AWS in Ent when using this module.
+There are two ways to connect AWS to Ent. Most customers use the Launch Stack flow; pick one of the manual flows if you have policy reasons not to run a customer-supplied CloudFormation template.
 
-### Terraform
+### Launch Stack (recommended)
 
-1. Add the code above to your terraform code
-2. Replace `main` in `ref=main` with the latest version from the [releases page](https://github.com/ent-security/aws-ent-deploy-role/releases)
-3. In your browser, open the AWS connection settings page in Ent
-4. Back in your terminal, run `terraform init` to download/update the module
-5. Run `terraform apply` and **IMPORTANT** review the plan output before typing `yes`
-6. When the terraform is applied, it will output the Role ARN, copy the ARN
-7. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
-8. Click the `Save & Test Connection` button
+Sales sends you an email with a Launch Stack button after your deal moves to onboarding. Clicking the button opens the AWS Console's CloudFormation stack creator with `template-autocomplete.yaml` pre-loaded and the per-deal callback parameters (`EntCallbackUrl`, `EntWebhookSecret`) already filled in:
 
-### CloudFormation
+1. Sign in to the AWS account where you want Ent to deploy.
+2. Click the Launch Stack button in the email — this opens AWS Console with the template pre-filled.
+3. Optionally edit `EntTenantName` on the review screen.
+4. Acknowledge the IAM capabilities checkbox and click `Create stack`.
+5. Wait for `CREATE_COMPLETE`. The bundled Lambda POSTs the new role ARN back to Ent on success and your tenant deployment starts automatically — no copy-paste required.
 
-1. Open the AWS connection settings page in Ent
-2. Deploy the CloudFormation stack
-3. Once deployed, find the Role ARN in the stack Outputs
-4. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
-5. Click the `Save & Test Connection` button
+If the stack lands in `CREATE_FAILED` with a "Could not reach Ent endpoint" reason, delete the stack and click Launch Stack again. The callback handler is idempotent on the Ent side, so a retry is safe.
 
-### CDK
+### Terraform (manual)
 
-1. Open the AWS connection settings page in Ent
-2. Pick a CDK variant (TypeScript or Python) and follow its README to install prerequisites
-3. Run `cdk deploy -c ent_aws_account_arn=<your-arn> -c role_name=<name>`
-4. Copy the `RoleArn` stack output
-5. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
-6. Click the `Save & Test Connection` button
+1. Add the module block from [Terraform Usage](#terraform-usage) to your Terraform code.
+2. Pin `ref=` to a tag from the [releases page](https://github.com/ent-security/aws-ent-deploy-role/releases) rather than `main`.
+3. Run `terraform init` to download the module, then `terraform apply` — **review the plan output before typing `yes`**.
+4. Copy the `role_arn` output (and the value you used for `role_sts_external_id`, if any).
+5. Email both to your Ent contact (or `support@ent.ai`). Ent uses them to assume the role and start your tenant deployment.
 
-### Pulumi
+### CloudFormation (manual)
 
-1. Open the AWS connection settings page in Ent
-2. Pick a Pulumi variant (TypeScript, Python, or Go) and follow its README to install prerequisites
-3. Run `pulumi config set ent-deploy-role:entAwsAccountArn <your-arn>` then `pulumi up`
-4. Copy the `roleArn` stack output
-5. Paste the Role ARN into the Role ARN field in the AWS Connections drawer in Ent
-6. Click the `Save & Test Connection` button
+1. Deploy `cloudformation/template.yaml` with the AWS CLI or the AWS Console (see [CloudFormation Usage](#cloudformation-usage)). Set `RoleStsExternalId` if your Ent contact supplied one.
+2. Once the stack reaches `CREATE_COMPLETE`, find `RoleArn` in the stack Outputs.
+3. Email the Role ARN (and the ExternalId, if any) to your Ent contact.
+
+### CDK (manual)
+
+1. Pick a CDK variant (TypeScript or Python) and follow its README to install prerequisites.
+2. Run `cdk deploy -c ent_aws_account_arn=<your-arn> -c role_name=<name>`.
+3. Copy the `RoleArn` stack output.
+4. Email it to your Ent contact.
+
+### Pulumi (manual)
+
+1. Pick a Pulumi variant (TypeScript, Python, or Go) and follow its README to install prerequisites.
+2. Run `pulumi config set ent-deploy-role:entAwsAccountArn <your-arn>` then `pulumi up`.
+3. Copy the `roleArn` stack output.
+4. Email it to your Ent contact.
 
 ## Directory Structure
 
 ```
 aws-ent-deploy-role/
+├── .github/
+│   └── workflows/
+│       └── publish.yml          # tags v* → S3/CloudFront publish
 ├── cdk/
 │   ├── typescript/
 │   └── python/
 ├── cloudformation/
-│   └── template.yaml
+│   ├── template.yaml            # IAM role + policy
+│   └── template-autocomplete.yaml  # role + policy + Launch-Stack callback Lambda
 ├── pulumi/
 │   ├── typescript/
 │   ├── python/

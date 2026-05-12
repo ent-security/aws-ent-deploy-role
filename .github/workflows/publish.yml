@@ -1,0 +1,52 @@
+name: Publish CFN templates
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::051759900972:role/aws-ent-deploy-role-publisher
+          aws-region: us-west-2
+          role-session-name: cfn-template-publish
+
+      - name: Sync templates to S3
+        env:
+          BUCKET: ${{ vars.CFN_TEMPLATES_BUCKET }}
+        run: |
+          set -xe
+          VERSION="${GITHUB_REF#refs/tags/}"
+
+          # Versioned path: immutable after first publish so customers can pin.
+          aws s3 cp cloudformation/template.yaml \
+            "s3://${BUCKET}/cfn/${VERSION}/template.yaml" \
+            --content-type text/yaml --cache-control 'public, max-age=300'
+          aws s3 cp cloudformation/template-autocomplete.yaml \
+            "s3://${BUCKET}/cfn/${VERSION}/template-autocomplete.yaml" \
+            --content-type text/yaml --cache-control 'public, max-age=300'
+
+          # Moving 'latest' alias: shorter cache TTL because it changes
+          # on every release and the Launch Stack URL points at it.
+          aws s3 cp cloudformation/template.yaml \
+            "s3://${BUCKET}/cfn/latest/template.yaml" \
+            --content-type text/yaml --cache-control 'public, max-age=60'
+          aws s3 cp cloudformation/template-autocomplete.yaml \
+            "s3://${BUCKET}/cfn/latest/template-autocomplete.yaml" \
+            --content-type text/yaml --cache-control 'public, max-age=60'
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CFN_TEMPLATES_DISTRIBUTION_ID }}" \
+            --paths '/cfn/latest/*'

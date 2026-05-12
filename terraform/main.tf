@@ -8,6 +8,15 @@ data "aws_iam_policy_document" "ent_deploy_assume_role" {
       type        = "AWS"
       identifiers = [var.ent_aws_account_arn]
     }
+
+    dynamic "condition" {
+      for_each = var.role_sts_external_id != "" ? [1] : []
+      content {
+        test     = "StringEquals"
+        variable = "sts:ExternalId"
+        values   = [var.role_sts_external_id]
+      }
+    }
   }
 }
 
