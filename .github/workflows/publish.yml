@@ -17,7 +17,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::051759900972:role/aws-ent-deploy-role-publisher
+          role-to-assume: ${{ vars.CFN_TEMPLATES_PUBLISHER_ROLE_ARN }}
           aws-region: us-west-2
           role-session-name: cfn-template-publish
 
