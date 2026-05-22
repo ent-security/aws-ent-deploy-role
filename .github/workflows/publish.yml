@@ -4,29 +4,52 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (dispatch only; tag pushes always go to prod)
+        type: choice
+        options: [dev, prod]
+        default: dev
 
 permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: publish-${{ inputs.environment || 'prod' }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'prod' }}
     steps:
       - uses: actions/checkout@v6
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.CFN_TEMPLATES_PUBLISHER_ROLE_ARN }}
-          aws-region: us-west-2
+          aws-region: us-west-1
           role-session-name: cfn-template-publish
+
+      - id: ver
+        name: Compute version
+        run: |
+          # Tag push → use the tag verbatim (e.g. v1.0.0).
+          # Dispatch → synthesize a dev-flavored version so concurrent runs
+          # never collide on the immutable cfn/<version>/ path.
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Sync templates to S3
         env:
           BUCKET: ${{ vars.CFN_TEMPLATES_BUCKET }}
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -xe
-          VERSION="${GITHUB_REF#refs/tags/}"
 
           # Versioned path: immutable after first publish so customers can pin.
           aws s3 cp cloudformation/template.yaml \
@@ -36,8 +59,8 @@ jobs:
             "s3://${BUCKET}/cfn/${VERSION}/template-autocomplete.yaml" \
             --content-type text/yaml --cache-control 'public, max-age=300'
 
-          # Moving 'latest' alias: shorter cache TTL because it changes
-          # on every release and the Launch Stack URL points at it.
+          # Moving 'latest' alias: shorter cache TTL because it changes on
+          # every release and the Launch Stack URL points at it.
           aws s3 cp cloudformation/template.yaml \
             "s3://${BUCKET}/cfn/latest/template.yaml" \
             --content-type text/yaml --cache-control 'public, max-age=60'
