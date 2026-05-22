@@ -336,7 +336,8 @@ aws-ent-deploy-role/
 │   └── versions.tf
 ├── role.json
 ├── policy.json
-└── README.md
+├── README.md
+└── PUBLISHING.md               # maintainer notes for the publish pipeline
 ```
 
 ## Permissions
