@@ -37,7 +37,11 @@ export class EntDeployRoleStack extends cdk.Stack {
 
     // Resolve repo root: cdk/typescript/lib/ -> cdk/typescript/ -> cdk/ -> repo root
     const repoRoot = path.resolve(__dirname, '..', '..', '..');
-    const policyJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8'));
+    // policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+    // partition to the AWS::Partition pseudo-param so the synthesized policy
+    // works in commercial and GovCloud (aws-us-gov) alike.
+    const policyRaw = fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8');
+    const policyJson = JSON.parse(policyRaw.replaceAll('arn:aws:', `arn:${cdk.Aws.PARTITION}:`));
     const trustJsonRaw = fs.readFileSync(path.join(repoRoot, 'role.json'), 'utf-8');
     const trustJson = JSON.parse(trustJsonRaw.replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
 

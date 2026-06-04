@@ -20,7 +20,11 @@ func (mocks) NewResource(args pulumi.MockResourceArgs) (string, resource.Propert
 }
 
 func (mocks) Call(args pulumi.MockCallArgs) (resource.PropertyMap, error) {
-	return args.Args, nil
+	// aws.GetPartition() — return a non-commercial partition so the test proves
+	// the policy ARNs are rewritten dynamically rather than left as `aws`.
+	return resource.NewPropertyMapFromMap(map[string]interface{}{
+		"partition": "aws-us-gov",
+	}), nil
 }
 
 func TestEntDeployRole(t *testing.T) {
@@ -37,7 +41,7 @@ func TestEntDeployRole(t *testing.T) {
 		}
 
 		var wg sync.WaitGroup
-		wg.Add(3)
+		wg.Add(4)
 
 		pulumi.All(resources.Policy.Name).ApplyT(func(v []interface{}) error {
 			defer wg.Done()
@@ -54,6 +58,12 @@ func TestEntDeployRole(t *testing.T) {
 		pulumi.All(resources.Role.AssumeRolePolicy).ApplyT(func(v []interface{}) error {
 			defer wg.Done()
 			assert.True(t, strings.Contains(v[0].(string), "arn:aws:iam::123456789012:root"))
+			return nil
+		})
+
+		pulumi.All(resources.Policy.Policy).ApplyT(func(v []interface{}) error {
+			defer wg.Done()
+			assert.Contains(t, v[0].(string), "arn:aws-us-gov:s3:::")
 			return nil
 		})
 

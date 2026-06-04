@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -50,6 +51,14 @@ func deploy(
 	if err != nil {
 		return nil, err
 	}
+	// policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+	// partition to the one we're deploying into so the policy works in commercial
+	// and GovCloud (aws-us-gov) alike.
+	part, err := aws.GetPartition(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	policyJSON = strings.ReplaceAll(policyJSON, "arn:aws:", "arn:"+part.Partition+":")
 	trustRaw, err := readRepoFile("role.json")
 	if err != nil {
 		return nil, err

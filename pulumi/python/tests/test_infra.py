@@ -12,7 +12,9 @@ class EntDeployRoleMocks(pulumi.runtime.Mocks):
         return [f"{args.name}_id", outputs]
 
     def call(self, args: pulumi.runtime.MockCallArgs):
-        return {}
+        # aws.get_partition() — return a non-commercial partition so the test
+        # proves the policy ARNs are rewritten dynamically rather than left `aws`.
+        return {"partition": "aws-us-gov"}
 
 
 os.environ["PULUMI_CONFIG"] = (
@@ -53,3 +55,11 @@ class TestEntDeployRole(unittest.TestCase):
             self.assertIn("arn:aws:iam::123456789012:root", policy_str)
 
         return infra.role.assume_role_policy.apply(check)
+
+    @pulumi.runtime.test
+    def test_policy_arns_rewritten_to_partition(self):
+        def check(policy_str):
+            self.assertIn("arn:aws-us-gov:s3:::", policy_str)
+            self.assertNotIn("arn:aws:s3:::", policy_str)
+
+        return infra.policy.policy.apply(check)

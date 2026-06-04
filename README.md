@@ -236,6 +236,8 @@ See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
 
 Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
 
+> **Deploying in AWS GovCloud?** `policy.json` ships with commercial `arn:aws:` ARNs — rewrite the partition before running the commands below. See [AWS partitions (GovCloud)](#aws-partitions-govcloud).
+
 1. Update `role.json` with your Ent AWS Account ARN:
 
 ```bash
@@ -311,6 +313,36 @@ If the stack lands in `CREATE_FAILED` with a "Could not reach Ent endpoint" reas
 2. Run `pulumi config set ent-deploy-role:entAwsAccountArn <your-arn>` then `pulumi up`.
 3. Copy the `roleArn` stack output.
 4. Email it to your Ent contact.
+
+## AWS partitions (GovCloud)
+
+Every IaC variant in this repo builds its resource ARNs from the partition it is
+deployed into, so the same code works in commercial AWS and AWS GovCloud
+(`aws-us-gov`) without edits:
+
+| Variant | Partition source |
+|---------|------------------|
+| Terraform / OpenTofu | `data.aws_partition.current.partition` |
+| CloudFormation | `${AWS::Partition}` pseudo-parameter |
+| CDK (TS + Python) | `Aws.PARTITION` |
+| Pulumi (TS, Python, Go) | `aws.getPartition()` |
+
+There is no flag to set — the partition is detected from the credentials and region
+you deploy with. Two things to know for GovCloud:
+
+- **Raw AWS CLI flow only.** `policy.json` is stored with commercial `arn:aws:` ARNs.
+  The IaC variants above rewrite the partition automatically, but the
+  [AWS CLI Usage](#aws-cli-usage) flow submits the file as-is, so rewrite it first:
+
+  ```bash
+  sed -i '' 's#arn:aws:#arn:aws-us-gov:#g' policy.json
+  ```
+
+- **Trust principal must match the role's partition.** The Ent account ARN you supply
+  (`ent_aws_account_arn` / `EntAwsAccountArn`) is left exactly as given — it is *not*
+  partition-rewritten, because it identifies Ent's account, not your deploy target.
+  Cross-partition `AssumeRole` (commercial ↔ GovCloud) is not supported, so a GovCloud
+  deployment needs a GovCloud Ent principal ARN. Ask your Ent contact for it.
 
 ## Directory Structure
 
