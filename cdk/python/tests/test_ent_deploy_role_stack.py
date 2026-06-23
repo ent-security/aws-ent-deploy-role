@@ -1,3 +1,5 @@
+import json
+
 import aws_cdk as cdk
 from aws_cdk import assertions
 
@@ -53,3 +55,12 @@ def test_honors_role_name_override():
         "AWS::IAM::Role",
         {"RoleName": "CustomRoleName"},
     )
+
+
+def test_parameterizes_arns_by_partition():
+    template = _template()
+    template_json = json.dumps(template.to_json())
+    # Permission-policy ARNs must resolve the partition via the AWS::Partition
+    # pseudo-param rather than hardcoding the commercial `aws` partition.
+    assert "AWS::Partition" in template_json
+    assert "arn:aws:athena" not in template_json

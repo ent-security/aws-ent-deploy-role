@@ -16,7 +16,13 @@ const tags = config.getObject<Record<string, string>>('tags') ?? {};
 
 // Resolve repo root: pulumi/typescript/ -> pulumi/ -> repo root
 const repoRoot = path.resolve(__dirname, '..', '..');
-const policyJson = fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8');
+// policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+// partition to the one we're deploying into so the policy works in commercial
+// and GovCloud (aws-us-gov) alike.
+const policyRaw = fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8');
+const policyJson = aws
+  .getPartitionOutput()
+  .partition.apply((p) => policyRaw.replaceAll('arn:aws:', `arn:${p}:`));
 const trustJson = fs
   .readFileSync(path.join(repoRoot, 'role.json'), 'utf-8')
   .replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn);

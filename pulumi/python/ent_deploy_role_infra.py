@@ -16,7 +16,11 @@ tags = config.get_object("tags") or {}
 
 # Resolve repo root: pulumi/python/ent_deploy_role_infra.py -> pulumi/python/ -> pulumi/ -> repo root
 repo_root = Path(__file__).resolve().parents[2]
-policy_json = (repo_root / "policy.json").read_text()
+# policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+# partition to the one we're deploying into so the policy works in commercial
+# and GovCloud (aws-us-gov) alike.
+partition = aws.get_partition().partition
+policy_json = (repo_root / "policy.json").read_text().replace("arn:aws:", f"arn:{partition}:")
 trust_json = (repo_root / "role.json").read_text().replace(
     "<ENT_AWS_ACCOUNT_ARN>", ent_aws_account_arn
 )

@@ -42,7 +42,11 @@ class EntDeployRoleStack(cdk.Stack):
 
         # Resolve repo root: cdk/python/ent_deploy_role/ -> cdk/python/ -> cdk/ -> repo root
         repo_root = Path(__file__).resolve().parents[3]
-        policy_json = json.loads((repo_root / "policy.json").read_text())
+        # policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+        # partition to the AWS::Partition pseudo-param so the synthesized policy
+        # works in commercial and GovCloud (aws-us-gov) alike.
+        policy_raw = (repo_root / "policy.json").read_text()
+        policy_json = json.loads(policy_raw.replace("arn:aws:", f"arn:{cdk.Aws.PARTITION}:"))
         trust_raw = (repo_root / "role.json").read_text()
         # Python str.replace replaces all occurrences by default (no count arg)
         trust_json = json.loads(trust_raw.replace("<ENT_AWS_ACCOUNT_ARN>", ent_aws_account_arn))

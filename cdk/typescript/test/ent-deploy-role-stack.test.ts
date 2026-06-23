@@ -45,4 +45,13 @@ describe('EntDeployRoleStack', () => {
       RoleName: 'CustomRoleName',
     });
   });
+
+  test('parameterizes policy ARNs by partition for GovCloud compatibility', () => {
+    const template = makeTemplate();
+    const json = JSON.stringify(template.toJSON());
+    // Permission-policy ARNs must resolve the partition via the AWS::Partition
+    // pseudo-param rather than hardcoding the commercial `aws` partition.
+    expect(json).toContain('AWS::Partition');
+    expect(json).not.toContain('arn:aws:athena');
+  });
 });

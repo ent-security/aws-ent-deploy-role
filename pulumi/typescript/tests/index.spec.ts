@@ -15,7 +15,9 @@ pulumi.runtime.setMocks(
       id: `${args.name}_id`,
       state: { ...args.inputs, arn: `arn:aws:iam::123456789012:${args.type}/${args.name}` },
     }),
-    call: (args: pulumi.runtime.MockCallArgs) => args.inputs,
+    // aws.getPartition() — return a non-commercial partition so the test proves
+    // the policy ARNs are rewritten dynamically rather than left as `aws`.
+    call: (args: pulumi.runtime.MockCallArgs) => ({ ...args.inputs, partition: 'aws-us-gov' }),
   },
   'ent-deploy-role',
   'test',
@@ -58,6 +60,24 @@ describe('EntDeployRole (Pulumi TS)', () => {
         assert.ok(
           policyStr && policyStr.includes('arn:aws:iam::123456789012:root'),
           `expected trust policy to contain configured ARN, got: ${policyStr}`,
+        );
+        done();
+      } catch (e) {
+        done(e);
+      }
+    });
+  });
+
+  it('rewrites policy ARNs to the deploy partition', (done) => {
+    infra.policy.policy.apply((policyStr: string | undefined) => {
+      try {
+        assert.ok(
+          policyStr && policyStr.includes('arn:aws-us-gov:s3:::'),
+          `expected gov-partition ARNs, got: ${policyStr}`,
+        );
+        assert.ok(
+          !policyStr!.includes('arn:aws:s3:::'),
+          'commercial-partition ARN should have been rewritten',
         );
         done();
       } catch (e) {
