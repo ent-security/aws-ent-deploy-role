@@ -1,0 +1,47 @@
+name: Terraform checks
+
+# Format, validate, and zero-diff-guard the Terraform/OpenTofu roots. Runs credential-free — no
+# AWS access needed because we only fmt/validate and plan-render the policy (partition is derived
+# from the region offline).
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'policy.json'
+      - '.github/workflows/terraform-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'policy.json'
+      - '.github/workflows/terraform-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tofu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: tofu fmt
+        run: tofu fmt -recursive -check terraform/
+
+      - name: Validate commercial root
+        run: |
+          tofu -chdir=terraform/commercial init -backend=false
+          tofu -chdir=terraform/commercial validate
+
+      - name: Validate govcloud root
+        run: |
+          tofu -chdir=terraform/govcloud init -backend=false
+          tofu -chdir=terraform/govcloud validate
+
+      - name: Zero-diff guard — commercial policy == policy.json
+        run: |
+          tofu -chdir=terraform/modules/deploy-permissions init -backend=false
+          tofu -chdir=terraform/modules/deploy-permissions test
