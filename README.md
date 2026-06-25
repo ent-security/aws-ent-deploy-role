@@ -6,9 +6,16 @@ Infrastructure as Code to create the Ent Security Deployment Role in AWS. Suppor
 
 **Note** the example below uses `ref=main`. It is recommended to pin this module to a specific tag version (i.e. `ref=1.0.0`) to avoid breaking changes. See the [releases page](https://github.com/ent-security/aws-ent-deploy-role/releases) for a list of published versions.
 
+> **Module path changed.** The Terraform root moved from `//terraform` to `//terraform/commercial`
+> (a major-version change) so the repo can host both the commercial role and the GovCloud
+> ([Roles Anywhere](#govcloud-roles-anywhere)) variant from one shared permission policy. If you
+> pin a tag from before this change, keep using `//terraform`; when you bump to the new major
+> version, update the source path to `//terraform/commercial`. State migrates in place (the root
+> ships `moved` blocks) — `terraform plan` shows no resource changes, only moves.
+
 ```hcl
 module "ent_deployment_role" {
-  source = "git::https://github.com/ent-security/aws-ent-deploy-role//terraform?ref=main"
+  source = "git::https://github.com/ent-security/aws-ent-deploy-role//terraform/commercial?ref=main"
 }
 
 # this will output the Role ARN
@@ -26,7 +33,7 @@ The Terraform module in this repository works unmodified with [OpenTofu](https:/
 If you want to deploy the module directly (e.g. from a local clone), you can use either tool:
 
 ```bash
-cd terraform/
+cd terraform/commercial/
 # Initialize providers
 terraform init    # or: tofu init
 
@@ -69,8 +76,61 @@ tags = {
 
 ### Requirements
 
-- Terraform >= 0.13.0
+- Terraform >= 1.1.0 (for `moved` block support in the `commercial` root)
 - AWS Provider >= 3.1.15
+
+## GovCloud (Roles Anywhere)
+
+GovCloud (`aws-us-gov`) tenants can't be reached with `sts:AssumeRole` — IAM does not allow a role
+in one partition to trust a principal in another. The `terraform/govcloud/` root provisions the
+GovCloud-side equivalent of the commercial deploy role, reached from commercial-partition Ent Home
+via [IAM Roles Anywhere](https://docs.aws.amazon.com/rolesanywhere/latest/userguide/introduction.html):
+Ent presents an X.509 client certificate (issued by an Ent-operated CA) to obtain temporary
+GovCloud credentials for the deploy role.
+
+It creates three resources in your GovCloud account — a **trust anchor** (anchored to the Ent CA
+root certificate), the **deploy role** (whose permission policy is the same shared policy as the
+commercial role, with the partition swapped to `aws-us-gov` and services unavailable in GovCloud
+removed), and a **profile** binding them.
+
+```bash
+cd terraform/govcloud/
+terraform init
+terraform apply \
+  -var 'environment=dev' \
+  -var "ca_certificate_pem=$(cat ent-ca-root.pem)"
+# Send the three output ARNs to your Ent contact.
+```
+
+The Ent CA root certificate (`ca_certificate_pem`) is supplied by your Ent contact during GovCloud
+onboarding.
+
+### GovCloud Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `ca_certificate_pem` | PEM-encoded Ent CA root certificate the trust anchor anchors to | — | Yes |
+| `environment` | Ent Home environment to trust (`dev` or `prod`); names the trust anchor/profile | — | Yes |
+| `region` | GovCloud region (selects the `aws-us-gov` partition) | `us-gov-west-1` | No |
+| `session_duration` | Max session duration (seconds) for issued credentials (900–43200) | `3600` | No |
+| `trusted_cert_cn` | Optional: pin the deployer certificate Subject CN in the role trust policy | `null` | No |
+| `role_name` | IAM role name | `HomeProdAssumeAdmin` | No |
+| `role_path` | IAM role path | `/` | No |
+| `role_description` | IAM role description | (provided by module) | No |
+| `tags` | A map of tags to add to created resources | `{}` | No |
+
+### GovCloud Outputs
+
+| Output | Description |
+|--------|-------------|
+| `trust_anchor_arn` | ARN of the Roles Anywhere trust anchor |
+| `profile_arn` | ARN of the Roles Anywhere profile |
+| `role_arn` | ARN of the deploy role |
+
+### GovCloud Requirements
+
+- Terraform >= 1.0.0
+- AWS Provider >= 5.0.0 (for the `aws_rolesanywhere_*` resources)
 
 ## CloudFormation Usage
 
@@ -350,7 +410,8 @@ you deploy with. Two things to know for GovCloud:
 aws-ent-deploy-role/
 ├── .github/
 │   └── workflows/
-│       └── publish.yml          # tags v* → S3/CloudFront publish
+│       ├── publish.yml          # tags v* → S3/CloudFront publish
+│       └── terraform-check.yml  # fmt + validate + commercial zero-diff guard
 ├── cdk/
 │   ├── typescript/
 │   └── python/
@@ -362,10 +423,12 @@ aws-ent-deploy-role/
 │   ├── python/
 │   └── go/
 ├── terraform/
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   └── versions.tf
+│   ├── modules/
+│   │   ├── deploy-permissions/      # shared IAM permission policy (partition-parameterized)
+│   │   ├── commercial-trust/        # assume-role trust + role (commercial)
+│   │   └── govcloud-rolesanywhere/  # trust anchor + profile + role (GovCloud)
+│   ├── commercial/                  # root: deploy-permissions + commercial-trust
+│   └── govcloud/                    # root: deploy-permissions + govcloud-rolesanywhere
 ├── role.json
 ├── policy.json
 └── README.md
