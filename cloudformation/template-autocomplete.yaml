@@ -323,18 +323,33 @@ Resources:
       Description: !Ref RoleDescription
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Ref EntAwsAccountArn
-            Action:
-              - sts:AssumeRole
-              - sts:TagSession
-            Condition: !If
-              - HasExternalId
-              - StringEquals:
+        # When an ExternalId is set, sts:AssumeRole keeps the ExternalId condition (confused-deputy
+        # protection) but sts:TagSession is split into its own statement WITHOUT the condition. STS
+        # only populates sts:ExternalId when authorizing sts:AssumeRole, not sts:TagSession; the Ent
+        # Home deploy identity uses EKS Pod Identity, whose transitive session tags force an
+        # sts:TagSession authorization alongside every cross-account assume, so gating TagSession on
+        # sts:ExternalId would deny it. With no ExternalId, both actions stay in one statement.
+        Statement: !If
+          - HasExternalId
+          - - Sid: EntDeployAssumeRole
+              Effect: Allow
+              Principal:
+                AWS: !Ref EntAwsAccountArn
+              Action: sts:AssumeRole
+              Condition:
+                StringEquals:
                   sts:ExternalId: !Ref RoleStsExternalId
-              - !Ref AWS::NoValue
+            - Sid: EntDeployTagSession
+              Effect: Allow
+              Principal:
+                AWS: !Ref EntAwsAccountArn
+              Action: sts:TagSession
+          - - Effect: Allow
+              Principal:
+                AWS: !Ref EntAwsAccountArn
+              Action:
+                - sts:AssumeRole
+                - sts:TagSession
       ManagedPolicyArns:
         - !Ref EntDeployPolicy
 

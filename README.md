@@ -304,6 +304,29 @@ Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
 sed -i '' 's/<ENT_AWS_ACCOUNT_ARN>/YOUR_ENT_AWS_ACCOUNT_ARN/' role.json
 ```
 
+   **Did your Ent contact supply an STS ExternalId?** Do **not** add the `sts:ExternalId` condition to the single combined statement in `role.json`. `sts:ExternalId` is only present in the request context when STS authorizes `sts:AssumeRole`; it is absent when STS authorizes the `sts:TagSession` call that the Ent Home deploy identity's transitive session tags (from EKS Pod Identity) trigger. Gating both actions on `sts:ExternalId` makes the deploy fail with `AccessDenied ... not authorized to perform: sts:TagSession`. Instead, write `role.json` as **two statements** — keep the ExternalId condition on `sts:AssumeRole`, and grant `sts:TagSession` without it:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EntDeployAssumeRole",
+      "Effect": "Allow",
+      "Principal": { "AWS": "YOUR_ENT_AWS_ACCOUNT_ARN" },
+      "Action": "sts:AssumeRole",
+      "Condition": { "StringEquals": { "sts:ExternalId": "YOUR_EXTERNAL_ID" } }
+    },
+    {
+      "Sid": "EntDeployTagSession",
+      "Effect": "Allow",
+      "Principal": { "AWS": "YOUR_ENT_AWS_ACCOUNT_ARN" },
+      "Action": "sts:TagSession"
+    }
+  ]
+}
+```
+
 2. Create the IAM role:
 
 ```bash

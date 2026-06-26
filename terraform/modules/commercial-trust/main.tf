@@ -5,22 +5,60 @@
 # cannot cross partitions.
 
 data "aws_iam_policy_document" "assume_role" {
-  statement {
-    effect = "Allow"
+  # No ExternalId configured: a single combined statement granting both actions with no condition.
+  # This is the original behavior and renders byte-for-byte identically to the pre-split policy.
+  dynamic "statement" {
+    for_each = var.role_sts_external_id == "" ? [1] : []
+    content {
+      effect = "Allow"
 
-    actions = ["sts:AssumeRole", "sts:TagSession"]
+      actions = ["sts:AssumeRole", "sts:TagSession"]
 
-    principals {
-      type        = "AWS"
-      identifiers = [var.ent_aws_account_arn]
+      principals {
+        type        = "AWS"
+        identifiers = [var.ent_aws_account_arn]
+      }
     }
+  }
 
-    dynamic "condition" {
-      for_each = var.role_sts_external_id != "" ? [1] : []
-      content {
+  # ExternalId configured: sts:AssumeRole keeps the ExternalId condition (confused-deputy protection).
+  dynamic "statement" {
+    for_each = var.role_sts_external_id != "" ? [1] : []
+    content {
+      sid    = "EntDeployAssumeRole"
+      effect = "Allow"
+
+      actions = ["sts:AssumeRole"]
+
+      principals {
+        type        = "AWS"
+        identifiers = [var.ent_aws_account_arn]
+      }
+
+      condition {
         test     = "StringEquals"
         variable = "sts:ExternalId"
         values   = [var.role_sts_external_id]
+      }
+    }
+  }
+
+  # ...but sts:TagSession is granted WITHOUT the ExternalId condition. STS only populates
+  # sts:ExternalId in the request context when it authorizes sts:AssumeRole, not sts:TagSession; the
+  # Home deploy identity uses EKS Pod Identity, whose transitive session tags force an sts:TagSession
+  # authorization alongside every cross-account assume. Gating TagSession on sts:ExternalId would
+  # evaluate a missing key -> implicit deny -> AccessDenied on sts:TagSession.
+  dynamic "statement" {
+    for_each = var.role_sts_external_id != "" ? [1] : []
+    content {
+      sid    = "EntDeployTagSession"
+      effect = "Allow"
+
+      actions = ["sts:TagSession"]
+
+      principals {
+        type        = "AWS"
+        identifiers = [var.ent_aws_account_arn]
       }
     }
   }
