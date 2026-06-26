@@ -45,3 +45,8 @@ jobs:
         run: |
           tofu -chdir=terraform/modules/deploy-permissions init -backend=false
           tofu -chdir=terraform/modules/deploy-permissions test
+
+      - name: Trust-policy guard — sts:TagSession never gated by sts:ExternalId
+        run: |
+          tofu -chdir=terraform/modules/commercial-trust init -backend=false
+          tofu -chdir=terraform/modules/commercial-trust test
