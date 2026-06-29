@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # create the release commit, tag, and GitHub Release
+      pull-requests: write      # open/update the release PR
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # Default GITHUB_TOKEN is fine: we do NOT rely on the tag-push event.
+          # The publish job below is chained via needs/if instead.
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      id-token: write          # OIDC for aws-actions/configure-aws-credentials
+    uses: ./.github/workflows/publish.yml
+    with:
+      environment: prod
+      version: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit
