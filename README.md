@@ -454,7 +454,8 @@ aws-ent-deploy-role/
 │   └── govcloud/                    # root: deploy-permissions + govcloud-rolesanywhere
 ├── role.json
 ├── policy.json
-└── README.md
+├── README.md
+└── PUBLISHING.md               # maintainer notes for the publish pipeline
 ```
 
 ## Permissions
