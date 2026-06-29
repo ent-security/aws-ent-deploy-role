@@ -370,6 +370,16 @@
                 "tag:*"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "ServiceQuotasEC2Access",
+            "Effect": "Allow",
+            "Action": [
+                "servicequotas:GetServiceQuota",
+                "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
+                "servicequotas:RequestServiceQuotaIncrease"
+            ],
+            "Resource": "arn:aws:servicequotas:*:*:ec2/*"
         }
     ]
 }
