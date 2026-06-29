@@ -489,6 +489,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | RDS (describe) | `rds:DescribeDBInstances` | unscoped (terraform provider calls this against `db:*` rather than a specific instance ARN) |
 | Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
+| Service Quotas | `servicequotas:GetServiceQuota`, `servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota`, `servicequotas:RequestServiceQuotaIncrease` | EC2-family quotas (`ec2/*`) — lets ent-platform's capability-aware GPU profile selection read the On-Demand G/VT vCPU quota and file an increase instead of wedging the GPU rollout (quota ARNs are account-global, not tenant-prefixed) |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |
 | S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
 | Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), `rds!` (RDS-managed master-password secrets), or `grafana/<tenant-uuid>-<env>/*` (Grafana OAuth config in `platform-monitoring`) |

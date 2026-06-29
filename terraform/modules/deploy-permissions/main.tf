@@ -327,6 +327,20 @@ locals {
       Action   = ["tag:*"]
       Resource = "*"
     },
+    {
+      # Read the account's "Running On-Demand G and VT instances" vCPU quota and file an increase so
+      # the capability-aware GPU profile selection in ent-platform can degrade to a launchable card (or
+      # raise the quota for a better one) instead of wedging the production-stack rollout on a Pending
+      # GPU pod. Scoped to the EC2 quota namespace -- quota ARNs are account-global, not tenant-prefixed.
+      Sid    = "ServiceQuotasEC2Access"
+      Effect = "Allow"
+      Action = [
+        "servicequotas:GetServiceQuota",
+        "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
+        "servicequotas:RequestServiceQuotaIncrease",
+      ]
+      Resource = "arn:${local.partition}:servicequotas:*:*:ec2/*"
+    },
   ]
 
   statements = [for s in local.all_statements : s if !contains(var.excluded_statement_sids, s.Sid)]
