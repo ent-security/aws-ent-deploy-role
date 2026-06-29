@@ -1,12 +1,20 @@
 name: Publish CFN templates
 
 on:
-  push:
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment
+        type: string
+        default: prod
+      version:
+        description: Version string to publish under (e.g. v1.2.3)
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       environment:
-        description: Target environment (dispatch only; tag pushes always go to prod)
+        description: Target environment (manual publish; synthesizes a dev version)
         type: choice
         options: [dev, prod]
         default: dev
@@ -35,11 +43,11 @@ jobs:
       - id: ver
         name: Compute version
         run: |
-          # Tag push → use the tag verbatim (e.g. v1.0.0).
-          # Dispatch → synthesize a dev-flavored version so concurrent runs
-          # never collide on the immutable cfn/<version>/ path.
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          # workflow_call (release path) passes the tag verbatim (e.g. v1.2.3).
+          # workflow_dispatch (manual) synthesizes a dev-flavored version so
+          # concurrent runs never collide on the immutable cfn/<version>/ path.
+          if [[ -n "${{ inputs.version }}" ]]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           else
             echo "version=dev-$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_OUTPUT"
           fi
