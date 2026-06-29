@@ -42,12 +42,14 @@ jobs:
 
       - id: ver
         name: Compute version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           # workflow_call (release path) passes the tag verbatim (e.g. v1.2.3).
           # workflow_dispatch (manual) synthesizes a dev-flavored version so
           # concurrent runs never collide on the immutable cfn/<version>/ path.
-          if [[ -n "${{ inputs.version }}" ]]; then
-            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          if [[ -n "$INPUT_VERSION" ]]; then
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "version=dev-$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_OUTPUT"
           fi
