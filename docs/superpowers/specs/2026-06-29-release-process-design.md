@@ -354,14 +354,19 @@ Scopes are validated only for *format*, not against a fixed list
 
 ## Manual repository settings (cannot be set in code — implementation checklist)
 
-1. **Settings → Actions → General → Workflow permissions:** enable **"Allow
-   GitHub Actions to create and approve pull requests."** *Required* — otherwise
-   release-please cannot open its release PR.
+1. **Allow release-please to open its release PR.** Easiest: **Settings → Actions →
+   General → Workflow permissions →** enable **"Allow GitHub Actions to create and
+   approve pull requests."** If that toggle is locked off by org policy (common in
+   hardened orgs), the release workflow instead authenticates as a **GitHub App** —
+   provide repo variable `RELEASE_PLEASE_APP_ID` and secret
+   `RELEASE_PLEASE_APP_PRIVATE_KEY` for an App (Contents + Pull requests: write)
+   installed on this repo. (This repo uses the GitHub App path.)
 2. **Settings → General → Pull Requests:** set the squash-merge commit message to
    **"Default to pull request title."** Ensures the squashed commit subject equals
    the validated PR title that release-please parses.
-3. **Branch protection on `main`:** require the **"Lint PR title"** status check
-   (and require a PR before merging).
+3. **Branch protection on `main`:** require the **`lint-pr-title`** status check
+   (that is the job name in the "Lint PR title" workflow; it appears in the check
+   search box once the workflow has run on a PR), and require a PR before merging.
 4. **`prod` environment:** if it has required reviewers, the chained publish job
    pauses for approval before publishing — a deliberate prod gate. Acceptable;
    document it so it isn't mistaken for a hang.

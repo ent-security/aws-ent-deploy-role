@@ -308,7 +308,7 @@ Validates every PR title against Conventional Commits — the exact text release
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: a status check named **"Lint PR title"** (made required in branch protection — see Manual Operator Steps).
+- Produces: a required status check whose context is the **job name** `lint-pr-title` (made required in branch protection — see Manual Operator Steps).
 
 - [ ] **Step 1: Create `.github/workflows/pr-title-lint.yml` with this exact content**
 
@@ -490,9 +490,9 @@ git commit -m "docs: document Conventional Commits and the release process"
 
 These require repo-admin access in the GitHub UI and cannot be done in code. Do them **after** this PR merges to `main`. They are required for the process to function.
 
-1. **Settings → Actions → General → Workflow permissions:** enable **"Allow GitHub Actions to create and approve pull requests."** *Required* — otherwise release-please cannot open its release PR.
+1. **Allow release-please to open its release PR.** Easiest: **Settings → Actions → General → Workflow permissions →** enable **"Allow GitHub Actions to create and approve pull requests."** If that toggle is locked off by org policy (common in hardened orgs), the release workflow instead authenticates as a **GitHub App**: provide repo variable `RELEASE_PLEASE_APP_ID` and secret `RELEASE_PLEASE_APP_PRIVATE_KEY` for an App (Contents + Pull requests: write) installed on this repo. (This repo uses the GitHub App path.)
 2. **Settings → General → Pull Requests → "Allow squash merging":** set the squash-merge commit message to **"Default to pull request title."** This makes the squashed commit subject equal the validated PR title that release-please parses.
-3. **Settings → Branches → branch protection for `main`:** require a PR before merging, and mark the **"Lint PR title"** status check as **required**.
+3. **Settings → Branches → branch protection for `main`:** require a PR before merging, and mark the **`lint-pr-title`** status check as **required** (that is the job name in the "Lint PR title" workflow; it appears in the check search box once the workflow has run on a PR). If the repo uses **Rulesets** instead, do the same under **Settings → Rules → Rulesets**.
 4. **Environments → `prod`:** if it has required reviewers, the chained publish job will pause for approval before publishing — a deliberate prod gate. Leave as-is unless you want fully unattended publishes.
 
 ## Post-merge Smoke Test
