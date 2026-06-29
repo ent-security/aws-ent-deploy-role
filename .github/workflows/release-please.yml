@@ -17,13 +17,22 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
     steps:
+      # The org disables "Allow GitHub Actions to create and approve pull requests",
+      # so the default GITHUB_TOKEN cannot open release-please's release PR. We
+      # authenticate as a GitHub App instead — that restriction only governs the
+      # automatic GITHUB_TOKEN, not an App/PAT identity. Publish is still chained
+      # below via needs/if, so we don't depend on the release tag re-triggering a workflow.
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          # Default GITHUB_TOKEN is fine: we do NOT rely on the tag-push event.
-          # The publish job below is chained via needs/if instead.
 
   publish:
     needs: release-please
