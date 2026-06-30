@@ -74,9 +74,15 @@ resource "aws_iam_role" "deploy" {
   tags = var.tags
 }
 
+# One attachment per functional permission policy. Keyed by list index (a static, plan-known key)
+# rather than the ARN value, which is computed and unknown at plan — a for_each over unknown values
+# errors. The index order is stable because policy_arns comes from the deploy-permissions module's
+# sorted-key output.
 resource "aws_iam_role_policy_attachment" "deploy" {
+  for_each = { for idx, arn in var.policy_arns : tostring(idx) => arn }
+
   role       = aws_iam_role.deploy.name
-  policy_arn = var.policy_arn
+  policy_arn = each.value
 }
 
 resource "aws_rolesanywhere_profile" "home" {

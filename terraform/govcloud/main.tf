@@ -36,5 +36,5 @@ module "govcloud_rolesanywhere" {
   role_description   = var.role_description
   tags               = var.tags
 
-  policy_arn = module.deploy_permissions.policy_arn
+  policy_arns = module.deploy_permissions.policy_arns
 }

@@ -1,0 +1,114 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "BedrockAccess",
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:*"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:*:*:inference-profile/*",
+                "arn:aws:bedrock:*:*:application-inference-profile/*",
+                "arn:aws:bedrock:*::foundation-model/*"
+            ]
+        },
+        {
+            "Sid": "CostAndUsageReportAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cur:Describe*",
+                "cur:Get*",
+                "cur:PutReportDefinition"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "BCMDataExportsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "bcm-data-exports:*"
+            ],
+            "Resource": [
+                "arn:aws:bcm-data-exports:*:*:export/*",
+                "arn:aws:bcm-data-exports:*:*:table/*"
+            ]
+        },
+        {
+            "Sid": "CloudWatchAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:*"
+            ],
+            "Resource": [
+                "arn:aws:cloudwatch:*:*:alarm:e???????????????-*"
+            ]
+        },
+        {
+            "Sid": "CloudWatchLogsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "logs:*"
+            ],
+            "Resource": [
+                "arn:aws:logs:*:*:log-group:e???????????????-*",
+                "arn:aws:logs:*:*:log-group:/aws/*/e???????????????-*",
+                "arn:aws:logs:*:*:log-group:/????????-????-????-????-????????????/*"
+            ]
+        },
+        {
+            "Sid": "CloudWatchLogsDescribeAccess",
+            "Effect": "Allow",
+            "Action": [
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ResourceGroupsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "resource-groups:*"
+            ],
+            "Resource": "arn:aws:resource-groups:*:*:group/e???????????????-*"
+        },
+        {
+            "Sid": "SNSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sns:*"
+            ],
+            "Resource": [
+                "arn:aws:sns:*:*:e???????????????-*",
+                "arn:aws:sns:*:*:db-event-notifications"
+            ]
+        },
+        {
+            "Sid": "SQSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:*"
+            ],
+            "Resource": "arn:aws:sqs:*:*:e???????????????-*"
+        },
+        {
+            "Sid": "TaggingAccess",
+            "Effect": "Allow",
+            "Action": [
+                "tag:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ServiceQuotasEC2Access",
+            "Effect": "Allow",
+            "Action": [
+                "servicequotas:GetServiceQuota",
+                "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
+                "servicequotas:RequestServiceQuotaIncrease"
+            ],
+            "Resource": "arn:aws:servicequotas:*:*:ec2/*"
+        }
+    ]
+}

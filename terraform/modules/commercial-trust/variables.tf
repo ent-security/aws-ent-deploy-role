@@ -33,7 +33,7 @@ variable "tags" {
   default     = {}
 }
 
-variable "policy_arn" {
-  description = "ARN of the permission policy to attach to the role"
-  type        = string
+variable "policy_arns" {
+  description = "ARNs of the permission policies to attach to the role. The permission set spans four functional managed policies; one role-policy attachment is created per ARN."
+  type        = list(string)
 }

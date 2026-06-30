@@ -1,0 +1,96 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AthenaAccess",
+            "Effect": "Allow",
+            "Action": [
+                "athena:*"
+            ],
+            "Resource": [
+                "arn:aws:athena:*:*:workgroup/e???????????????-*",
+                "arn:aws:athena:*:*:datacatalog/e???????????????-*"
+            ]
+        },
+        {
+            "Sid": "EFSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "elasticfilesystem:*"
+            ],
+            "Resource": [
+                "arn:aws:elasticfilesystem:*:*:file-system/*",
+                "arn:aws:elasticfilesystem:*:*:access-point/*"
+            ]
+        },
+        {
+            "Sid": "ElastiCacheAccess",
+            "Effect": "Allow",
+            "Action": [
+                "elasticache:*"
+            ],
+            "Resource": [
+                "arn:aws:elasticache:*:*:cluster:e???????????????-*",
+                "arn:aws:elasticache:*:*:replicationgroup:e???????????????-*",
+                "arn:aws:elasticache:*:*:parametergroup:e???????????????-*",
+                "arn:aws:elasticache:*:*:subnetgroup:e???????????????-*"
+            ]
+        },
+        {
+            "Sid": "GlueAccess",
+            "Effect": "Allow",
+            "Action": [
+                "glue:*"
+            ],
+            "Resource": [
+                "arn:aws:glue:*:*:catalog",
+                "arn:aws:glue:*:*:database/e???????????????*",
+                "arn:aws:glue:*:*:table/e???????????????*/*"
+            ]
+        },
+        {
+            "Sid": "RDSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "rds:*",
+                "rds-db:*"
+            ],
+            "Resource": [
+                "arn:aws:rds:*:*:db:e???????????????-*",
+                "arn:aws:rds:*:*:cluster:e???????????????-*",
+                "arn:aws:rds:*:*:pg:e???????????????-*",
+                "arn:aws:rds:*:*:subgrp:e???????????????-*",
+                "arn:aws:rds:*:*:es:e???????????????-*",
+                "arn:aws:rds:*:*:es:db-event-sub-*",
+                "arn:aws:rds-db:*:*:dbuser:*/*"
+            ]
+        },
+        {
+            "Sid": "RDSDescribeAccess",
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBInstances"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3Access",
+            "Effect": "Allow",
+            "Action": [
+                "s3:*"
+            ],
+            "Resource": [
+                "arn:aws:s3:::e???????????????-*",
+                "arn:aws:s3:::e???????????????-*/*"
+            ]
+        },
+        {
+            "Sid": "S3ListAllMyBucketsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

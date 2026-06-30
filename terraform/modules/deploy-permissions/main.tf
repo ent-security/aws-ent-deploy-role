@@ -8,9 +8,19 @@
 #      var.excluded_statement_sids (see the govcloud/ root). This is the documented
 #      "partition-override" spot; add Sids here as GovCloud apply surfaces unavailable services.
 #
-# Commercial rendering (partition == "aws", no exclusions) is byte-for-byte equivalent to the
-# pre-refactor terraform/main.tf policy and the authoritative policy.json — enforced by the
-# zero-diff test in terraform/commercial/tests/.
+# A single managed policy carrying all 36 statements exceeds AWS's 6144-character managed-policy
+# hard limit. The permission set is therefore split across FOUR functional managed policies along
+# service-domain boundaries — compute/network, data/storage, identity/security, and
+# observability/platform — each well under the limit (see scripts/check-policy-size.sh). Every
+# statement is assigned to exactly one domain by its Sid (local.statement_group); the union of the
+# four is the full permission set, so the commercial rendering is permission-equivalent to the
+# authoritative EntHomeAccess.reference.json. The split changes statement ORDER but not the set, so
+# the zero-diff test in tests/ asserts set-equality (each rendered policy == its file, AND the
+# Sid-sorted union of the four == the reference), not positional identity.
+#
+# The four policies are named ${var.policy_name}{Compute,Data,Security,Platform} from the
+# var.policy_name prefix (default "EntHomeAccess"), so a consumer overriding the prefix still gets
+# four suffixed names.
 
 data "aws_partition" "current" {}
 
@@ -343,16 +353,85 @@ locals {
     },
   ]
 
-  statements = [for s in local.all_statements : s if !contains(var.excluded_statement_sids, s.Sid)]
+  # Functional split: each statement's Sid maps to exactly one of the four service domains. The
+  # union of the four lists is the full permission set; the union is asserted set-equal (by Sid) to
+  # EntHomeAccess.reference.json by the zero-diff test. Keep this map in lockstep with the four
+  # EntHomeAccess.<domain>.json files — a Sid added to the policy must land in exactly one domain
+  # here AND in the matching file.
+  statement_group = {
+    # Compute & Networking -> EntHomeAccessCompute (EntHomeAccess.compute-network.json)
+    EC2Access                      = "compute-network"
+    EKSAccess                      = "compute-network"
+    EKSDescribeAddonVersionsAccess = "compute-network"
+    ECRAccess                      = "compute-network"
+    ECRAuthTokenAccess             = "compute-network"
+    ELBAccess                      = "compute-network"
+    Route53Access                  = "compute-network"
+
+    # Data & Storage -> EntHomeAccessData (EntHomeAccess.data-storage.json)
+    S3Access                 = "data-storage"
+    S3ListAllMyBucketsAccess = "data-storage"
+    RDSAccess                = "data-storage"
+    RDSDescribeAccess        = "data-storage"
+    EFSAccess                = "data-storage"
+    ElastiCacheAccess        = "data-storage"
+    AthenaAccess             = "data-storage"
+    GlueAccess               = "data-storage"
+
+    # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
+    IAMAccess                  = "identity-security"
+    IAMSessionContextAccess    = "identity-security"
+    IAMServiceLinkedRoleAccess = "identity-security"
+    STSAssumeRoleAccess        = "identity-security"
+    STSIdentityAccess          = "identity-security"
+    KMSAccess                  = "identity-security"
+    KMSAccountLevelAccess      = "identity-security"
+    SecretsManagerAccess       = "identity-security"
+    CertificateManagerAccess   = "identity-security"
+    WAFv2Access                = "identity-security"
+
+    # Observability & Platform -> EntHomeAccessPlatform (EntHomeAccess.observability-platform.json)
+    CloudWatchAccess             = "observability-platform"
+    CloudWatchLogsAccess         = "observability-platform"
+    CloudWatchLogsDescribeAccess = "observability-platform"
+    CostAndUsageReportAccess     = "observability-platform"
+    BCMDataExportsAccess         = "observability-platform"
+    ServiceQuotasEC2Access       = "observability-platform"
+    ResourceGroupsAccess         = "observability-platform"
+    TaggingAccess                = "observability-platform"
+    SNSAccess                    = "observability-platform"
+    SQSAccess                    = "observability-platform"
+    BedrockAccess                = "observability-platform"
+  }
+
+  # Per-domain definition: the name suffix appended to var.policy_name. Drives one aws_iam_policy
+  # each via for_each. Map keys match the statement_group values.
+  groups = {
+    compute-network        = { suffix = "Compute" }
+    data-storage           = { suffix = "Data" }
+    identity-security      = { suffix = "Security" }
+    observability-platform = { suffix = "Platform" }
+  }
+
+  # Drop excluded Sids (GovCloud partition prune), keeping the original relative order, then bucket
+  # the survivors by domain. Fails loud (Terraform errors on the missing map key) if a statement's
+  # Sid is absent from statement_group — a new statement must be categorized.
+  included_statements = [for s in local.all_statements : s if !contains(var.excluded_statement_sids, s.Sid)]
+  grouped_statements = {
+    for key, _ in local.groups :
+    key => [for s in local.included_statements : s if local.statement_group[s.Sid] == key]
+  }
 }
 
 resource "aws_iam_policy" "this" {
-  name        = var.policy_name
+  for_each = local.groups
+
+  name        = "${var.policy_name}${each.value.suffix}"
   description = var.policy_description
   path        = var.policy_path
 
   policy = jsonencode({
     Version   = "2012-10-17"
-    Statement = local.statements
+    Statement = local.grouped_statements[each.key]
   })
 }

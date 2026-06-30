@@ -11,13 +11,28 @@ _DEFAULTS = {
     "role_name": "HomeProdAssumeAdmin",
     "role_path": "/",
     "role_description": "Role that allows Ent Home to assume AdministratorAccess role",
-    "policy_name": "EntHomeAccess",
+    "policy_name_prefix": "EntHomeAccess",
     "policy_description": (
         "Custom policy for permissions needed by Ent Home to deploy and manage "
         "resources in customer accounts. This policy is attached to the role that "
         "Ent Home assumes when deploying resources in customer accounts."
     ),
 }
+
+# The permission set is split across four functional managed policies so each stays under AWS's
+# 6144-character managed-policy limit. Each entry is (authoritative file, name suffix); the policy
+# is named f"{prefix}{suffix}" (default EntHomeAccess{Compute,Data,Security,Platform}). The union of
+# the four equals EntHomeAccess.reference.json. Keep this in lockstep with the Terraform
+# statement_group map and the files.
+_POLICY_FILES = [
+    ("EntHomeAccess.compute-network.json", "Compute"),
+    ("EntHomeAccess.data-storage.json", "Data"),
+    ("EntHomeAccess.identity-security.json", "Security"),
+    ("EntHomeAccess.observability-platform.json", "Platform"),
+]
+
+# Suffix of the functional policy whose ARN backs the deprecated single-ARN `policy_arn` output.
+_COMPAT_POLICY_SUFFIX = "Security"
 
 
 class EntDeployRoleStack(cdk.Stack):
@@ -42,23 +57,26 @@ class EntDeployRoleStack(cdk.Stack):
 
         # Resolve repo root: cdk/python/ent_deploy_role/ -> cdk/python/ -> cdk/ -> repo root
         repo_root = Path(__file__).resolve().parents[3]
-        # policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
-        # partition to the AWS::Partition pseudo-param so the synthesized policy
-        # works in commercial and GovCloud (aws-us-gov) alike.
-        policy_raw = (repo_root / "policy.json").read_text()
-        policy_json = json.loads(policy_raw.replace("arn:aws:", f"arn:{cdk.Aws.PARTITION}:"))
+        # The functional policy files hold the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+        # partition to the AWS::Partition pseudo-param so the synthesized policies work in commercial
+        # and GovCloud (aws-us-gov) alike. Each file becomes its own managed policy, mirroring the
+        # Terraform module.
+        managed_policies = {}
+        for filename, suffix in _POLICY_FILES:
+            policy_raw = (repo_root / filename).read_text()
+            policy_json = json.loads(policy_raw.replace("arn:aws:", f"arn:{cdk.Aws.PARTITION}:"))
+            managed_policies[suffix] = iam.CfnManagedPolicy(
+                self,
+                f"EntHomeAccess{suffix}Policy",
+                managed_policy_name=f"{_DEFAULTS['policy_name_prefix']}{suffix}",
+                description=_DEFAULTS["policy_description"],
+                path="/",
+                policy_document=policy_json,
+            )
+
         trust_raw = (repo_root / "role.json").read_text()
         # Python str.replace replaces all occurrences by default (no count arg)
         trust_json = json.loads(trust_raw.replace("<ENT_AWS_ACCOUNT_ARN>", ent_aws_account_arn))
-
-        managed_policy = iam.CfnManagedPolicy(
-            self,
-            "EntHomeAccessPolicy",
-            managed_policy_name=_DEFAULTS["policy_name"],
-            description=_DEFAULTS["policy_description"],
-            path="/",
-            policy_document=policy_json,
-        )
 
         tags = (
             [{"key": k, "value": v} for k, v in ent_tags.items()]
@@ -73,14 +91,19 @@ class EntDeployRoleStack(cdk.Stack):
             path=role_path,
             description=role_description,
             assume_role_policy_document=trust_json,
-            managed_policy_arns=[managed_policy.ref],
+            managed_policy_arns=[managed_policies[suffix].ref for _, suffix in _POLICY_FILES],
             tags=tags,
         )
 
         self.role_arn = role.attr_arn
         self.role_name_out = role.ref
-        self.policy_arn = managed_policy.ref
+        self.policy_arns = [managed_policies[suffix].ref for _, suffix in _POLICY_FILES]
+        # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policy_arns.
+        self.policy_arn = managed_policies[_COMPAT_POLICY_SUFFIX].ref
 
         cdk.CfnOutput(self, "RoleArn", value=self.role_arn)
         cdk.CfnOutput(self, "RoleName", value=self.role_name_out)
+        for filename, suffix in _POLICY_FILES:
+            cdk.CfnOutput(self, f"PolicyArn{suffix}", value=managed_policies[suffix].ref)
+        # Deprecated compat output, retained so existing references keep resolving.
         cdk.CfnOutput(self, "PolicyArn", value=self.policy_arn)

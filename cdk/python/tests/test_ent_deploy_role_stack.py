@@ -17,12 +17,20 @@ def _template(**props):
     return assertions.Template.from_stack(stack)
 
 
-def test_creates_managed_policy_named_ent_home_access():
+def test_creates_four_functional_managed_policies():
     template = _template()
-    template.has_resource_properties(
-        "AWS::IAM::ManagedPolicy",
-        {"ManagedPolicyName": "EntHomeAccess"},
-    )
+    # The permission set is split across four functional managed policies, all attached to the role.
+    template.resource_count_is("AWS::IAM::ManagedPolicy", 4)
+    for name in (
+        "EntHomeAccessCompute",
+        "EntHomeAccessData",
+        "EntHomeAccessSecurity",
+        "EntHomeAccessPlatform",
+    ):
+        template.has_resource_properties(
+            "AWS::IAM::ManagedPolicy",
+            {"ManagedPolicyName": name},
+        )
 
 
 def test_creates_role_with_default_name():

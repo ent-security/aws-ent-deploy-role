@@ -12,10 +12,28 @@ describe('EntDeployRoleStack', () => {
     return Template.fromStack(stack);
   };
 
-  test('creates a managed policy named EntHomeAccess', () => {
+  test('creates the four functional managed policies', () => {
     const template = makeTemplate();
-    template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
-      ManagedPolicyName: 'EntHomeAccess',
+    // The permission set is split across four functional managed policies, all attached to the role.
+    template.resourceCountIs('AWS::IAM::ManagedPolicy', 4);
+    for (const name of [
+      'EntHomeAccessCompute',
+      'EntHomeAccessData',
+      'EntHomeAccessSecurity',
+      'EntHomeAccessPlatform',
+    ]) {
+      template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
+        ManagedPolicyName: name,
+      });
+    }
+  });
+
+  test('attaches all four managed policies to the role', () => {
+    const template = makeTemplate();
+    const policies = template.findResources('AWS::IAM::ManagedPolicy');
+    const policyRefs = Object.keys(policies).map((logicalId) => ({ Ref: logicalId }));
+    template.hasResourceProperties('AWS::IAM::Role', {
+      ManagedPolicyArns: Match.arrayWith(policyRefs),
     });
   });
 
