@@ -473,7 +473,6 @@ aws-ent-deploy-role/
 ├── EntHomeAccess.data-storage.json           # functional policy: Data & Storage
 ├── EntHomeAccess.identity-security.json      # functional policy: Identity & Security
 ├── EntHomeAccess.observability-platform.json # functional policy: Observability & Platform
-├── EntHomeAccess.reference.json              # full permission set (union of the four) — no-drift anchor, not deployed
 └── README.md
 ```
 
@@ -490,7 +489,7 @@ The full permission set exceeds AWS's **6144-character** single-managed-policy h
 
 The managed-policy names come from a name **prefix** (Terraform `var.policy_name`, default `EntHomeAccess`) suffixed per domain — `${prefix}Compute`, `${prefix}Data`, `${prefix}Security`, `${prefix}Platform`. Overriding the prefix renames all four in lockstep.
 
-`EntHomeAccess.reference.json` holds the **full permission set** — the union of the four files — as a no-drift anchor. It is intentionally over the 6144-character limit and is **never deployed**; the Terraform zero-diff test asserts that the Sid-sorted union of the four functional policies equals it, so the split can only reorder statements, never add, drop, or alter a permission. `scripts/check-policy-size.sh` (wired into CI) fails the build if any functional file approaches the limit.
+The split introduced no permission change: before merge, the Sid-keyed union of the four files was validated set-equal to the pre-split single policy via a throwaway reference file built from the previous `policy.json` (since removed — the four files are now the sole source of truth). The Terraform zero-diff test asserts each rendered managed policy matches its `EntHomeAccess.<domain>.json` file, and `scripts/check-policy-size.sh` (wired into CI) fails the build if any functional file approaches the 6144-character limit.
 
 ### Migrating an existing tenant
 

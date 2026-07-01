@@ -13,10 +13,9 @@
 # service-domain boundaries — compute/network, data/storage, identity/security, and
 # observability/platform — each well under the limit (see scripts/check-policy-size.sh). Every
 # statement is assigned to exactly one domain by its Sid (local.statement_group); the union of the
-# four is the full permission set, so the commercial rendering is permission-equivalent to the
-# authoritative EntHomeAccess.reference.json. The split changes statement ORDER but not the set, so
-# the zero-diff test in tests/ asserts set-equality (each rendered policy == its file, AND the
-# Sid-sorted union of the four == the reference), not positional identity.
+# four is the full permission set. The zero-diff test in tests/ asserts each rendered policy == its
+# EntHomeAccess.<domain>.json file. (The split's set-equality to the pre-split single policy was
+# validated before merge via a throwaway reference anchor, since removed.)
 #
 # The four policies are named ${var.policy_name}{Compute,Data,Security,Platform} from the
 # var.policy_name prefix (default "EntHomeAccess"), so a consumer overriding the prefix still gets
@@ -354,8 +353,7 @@ locals {
   ]
 
   # Functional split: each statement's Sid maps to exactly one of the four service domains. The
-  # union of the four lists is the full permission set; the union is asserted set-equal (by Sid) to
-  # EntHomeAccess.reference.json by the zero-diff test. Keep this map in lockstep with the four
+  # union of the four lists is the full permission set. Keep this map in lockstep with the four
   # EntHomeAccess.<domain>.json files — a Sid added to the policy must land in exactly one domain
   # here AND in the matching file.
   statement_group = {

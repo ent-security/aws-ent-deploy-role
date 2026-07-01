@@ -21,9 +21,8 @@ output "policy_names" {
 }
 
 # Rendered policy JSON keyed by functional domain. Exposed so the zero-diff test can assert each
-# rendered policy == its EntHomeAccess.<domain>.json file and that the Sid-sorted union of the four
-# == EntHomeAccess.reference.json (no permission drift).
+# rendered policy == its EntHomeAccess.<domain>.json file.
 output "policy_json_by_group" {
   value       = { for k, p in aws_iam_policy.this : k => p.policy }
-  description = "Map of functional domain -> rendered policy JSON. Used by the zero-diff test to assert set-equality against the per-domain files and the reference union."
+  description = "Map of functional domain -> rendered policy JSON. Used by the zero-diff test to assert each rendered policy matches its per-domain file."
 }

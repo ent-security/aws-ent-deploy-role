@@ -16,11 +16,6 @@
 # ... exceeds maximum allowed size` into a clear PR-time failure that names the offending file and its
 # size.
 #
-# EntHomeAccess.reference.json is the historical full permission set (every statement, the union of
-# the four functional files), kept only as a no-drift anchor for the Terraform zero-diff test. It is
-# intentionally over the limit (that is the whole reason for the functional split), so it is excluded
-# from this lint.
-#
 # Usage: scripts/check-policy-size.sh
 # Run from the repo root (CI does). Exits non-zero on any violation.
 
@@ -34,17 +29,14 @@ command -v jq >/dev/null 2>&1 || { echo "check-policy-size: requires 'jq' on PAT
 THRESHOLD=6000
 AWS_LIMIT=6144
 
-# The functional policy files (one managed policy each). Globs EntHomeAccess.*.json and excludes the
-# reference union. A new functional file (EntHomeAccess.<domain>.json) is picked up automatically.
+# The functional policy files (one managed policy each). Globs EntHomeAccess.<domain>.json; a new
+# functional file is picked up automatically.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
 policy_files=()
 for f in EntHomeAccess.*.json; do
   [ -e "$f" ] || continue
-  if [ "$f" = "EntHomeAccess.reference.json" ]; then
-    continue
-  fi
   policy_files+=("$f")
 done
 

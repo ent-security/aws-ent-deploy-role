@@ -9,8 +9,8 @@ on:
   pull_request:
     paths:
       - 'terraform/**'
-      # Matches all four functional policy files (EntHomeAccess.<domain>.json) and the reference
-      # union (EntHomeAccess.reference.json) — a change to any policy file re-runs the guards.
+      # Matches the four functional policy files (EntHomeAccess.<domain>.json) — a change to any of
+      # them re-runs the guards.
       - 'EntHomeAccess*.json'
       - 'scripts/check-policy-size.sh'
       - '.github/workflows/terraform-check.yml'
@@ -49,7 +49,7 @@ jobs:
           tofu -chdir=terraform/govcloud init -backend=false
           tofu -chdir=terraform/govcloud validate
 
-      - name: Zero-diff guard — functional split is set-equal to EntHomeAccess.reference.json
+      - name: Zero-diff guard — each rendered managed policy matches its EntHomeAccess.<domain>.json file
         run: |
           tofu -chdir=terraform/modules/deploy-permissions init -backend=false
           tofu -chdir=terraform/modules/deploy-permissions test

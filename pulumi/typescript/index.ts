@@ -21,7 +21,7 @@ const policyDescription =
 // The permission set is split across four functional managed policies so each stays under AWS's
 // 6144-character managed-policy limit. Each entry is [authoritative file, name suffix]; the policy
 // is named `${prefix}${suffix}` (EntHomeAccess{Compute,Data,Security,Platform}). The union of the
-// four equals EntHomeAccess.reference.json. Keep this in lockstep with the Terraform
+// four is the complete permission set. Keep this in lockstep with the Terraform
 // statement_group map and the files.
 const POLICY_FILES: ReadonlyArray<readonly [string, string]> = [
   ['EntHomeAccess.compute-network.json', 'Compute'],
