@@ -434,4 +434,6 @@ resource "aws_iam_policy" "this" {
     Version   = "2012-10-17"
     Statement = local.grouped_statements[each.key]
   })
+
+  tags = var.tags
 }

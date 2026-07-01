@@ -13,6 +13,7 @@
 module "deploy_permissions" {
   source = "../modules/deploy-permissions"
 
+  tags = var.tags
   # Commercial gets the full policy set: no partition exclusions, ARNs render arn:aws:*.
 }
 

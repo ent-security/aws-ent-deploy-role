@@ -21,3 +21,9 @@ variable "excluded_statement_sids" {
   type        = list(string)
   default     = []
 }
+
+variable "tags" {
+  description = "Tags applied to the managed policies, mirroring the tags on the deploy role (e.g. the FinOps Service / Environment keys). Threaded from the root so the policies carry the same tags the role does."
+  type        = map(string)
+  default     = {}
+}
