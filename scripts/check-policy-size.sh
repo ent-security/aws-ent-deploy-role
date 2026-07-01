@@ -26,6 +26,10 @@
 
 set -euo pipefail
 
+# jq canonicalizes each policy to compact JSON so the measured size matches what AWS counts (formatting
+# whitespace removed, string contents kept). Required on PATH.
+command -v jq >/dev/null 2>&1 || { echo "check-policy-size: requires 'jq' on PATH" >&2; exit 1; }
+
 # Margin under AWS's 6144-character hard limit. A file at or above this fails the build.
 THRESHOLD=6000
 AWS_LIMIT=6144
@@ -49,15 +53,18 @@ if [ "${#policy_files[@]}" -eq 0 ]; then
   exit 1
 fi
 
-# Count non-whitespace characters: strip all whitespace (spaces, tabs, newlines) then count bytes.
-nonws_len() {
-  tr -d '[:space:]' < "$1" | wc -c | tr -d ' '
+# Policy size as AWS measures it: the document with insignificant (formatting) whitespace removed but
+# whitespace INSIDE string values kept (it is significant and counted). `jq -c` emits exactly that
+# compact form; stripping all whitespace would drop in-string spaces and undercount, risking a false
+# pass. Count characters of the compact JSON (policies are ASCII, so bytes == chars).
+policy_size() {
+  jq -c . "$1" | tr -d '\n' | wc -c | tr -d ' '
 }
 
 status=0
-echo "Managed-policy size check (threshold ${THRESHOLD}, AWS hard limit ${AWS_LIMIT}, non-whitespace chars):"
+echo "Managed-policy size check (threshold ${THRESHOLD}, AWS hard limit ${AWS_LIMIT}, compact-JSON chars):"
 for f in "${policy_files[@]}"; do
-  len="$(nonws_len "$f")"
+  len="$(policy_size "$f")"
   if [ "$len" -ge "$THRESHOLD" ]; then
     printf '  FAIL  %-42s %5s chars  >= threshold %s (AWS limit %s)\n' "$f" "$len" "$THRESHOLD" "$AWS_LIMIT"
     status=1

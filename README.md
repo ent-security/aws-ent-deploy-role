@@ -350,16 +350,15 @@ aws iam create-role \
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 PARTITION="aws"  # use "aws-us-gov" in GovCloud
 
-# file -> managed-policy-name pairs (one policy per functional domain)
-declare -A POLICIES=(
-  ["EntHomeAccess.compute-network.json"]="EntHomeAccessCompute"
-  ["EntHomeAccess.data-storage.json"]="EntHomeAccessData"
-  ["EntHomeAccess.identity-security.json"]="EntHomeAccessSecurity"
-  ["EntHomeAccess.observability-platform.json"]="EntHomeAccessPlatform"
-)
-
-for file in "${!POLICIES[@]}"; do
-  name="${POLICIES[$file]}"
+# file:managed-policy-name pairs (one policy per functional domain). Plain list + parameter-expansion
+# split (${pair%%:*} / ${pair##*:}) so this runs on Bash 3.2 (macOS default) — no associative arrays.
+for pair in \
+  "EntHomeAccess.compute-network.json:EntHomeAccessCompute" \
+  "EntHomeAccess.data-storage.json:EntHomeAccessData" \
+  "EntHomeAccess.identity-security.json:EntHomeAccessSecurity" \
+  "EntHomeAccess.observability-platform.json:EntHomeAccessPlatform"; do
+  file="${pair%%:*}"
+  name="${pair##*:}"
   aws iam create-policy --policy-name "$name" --policy-document "file://$file"
   aws iam attach-role-policy \
     --role-name HomeProdAssumeAdmin \

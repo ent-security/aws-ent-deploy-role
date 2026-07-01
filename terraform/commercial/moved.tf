@@ -7,8 +7,10 @@
 # Platform} policies — a destroy-and-create, not a rename. A moved block can only express a rename
 # (one address -> one address); pretending the replace is a rename would be wrong (the old single
 # policy genuinely goes away, and the old single-attachment to it goes with it). The old policy +
-# attachment are destroyed and the four new policies + attachments are created; the role, and thus
-# the tenant's effective permission set, is unchanged across the apply.
+# attachment are destroyed and the four new policies + attachments are created. Terraform does not
+# guarantee ordering between the destroy and the creates, so the role's effective permissions may be
+# briefly reduced DURING the apply; they are identical once it completes. Run the apply when no tenant
+# deploy is in flight.
 
 moved {
   from = aws_iam_role.ent
