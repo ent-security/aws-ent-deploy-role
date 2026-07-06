@@ -137,7 +137,7 @@ onboarding.
 
 ## CloudFormation Usage
 
-> **Note.** The CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) still carry the full permission set inline as a single `EntAdditionalPermissions` managed policy and have **not** been migrated to the four-policy [functional split](#managed-policy-split). Because the full set exceeds AWS's 6144-character single-managed-policy limit, splitting the CFN templates the same way is tracked as a follow-up. Until then, use the Terraform, CDK, Pulumi, or raw-CLI flow (each of which creates the four functional policies) if the inline policy exceeds the limit in your account.
+> **Note.** Like the Terraform, CDK, and Pulumi variants, the CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) create the permission set as the four functional managed policies (`EntHomeAccessCompute`, `EntHomeAccessData`, `EntHomeAccessSecurity`, `EntHomeAccessPlatform` — see the [functional split](#managed-policy-split)) and attach all four to the role, keeping each under AWS's 6144-character single-managed-policy limit. The CFN statements are hand-maintained (no zero-diff test guards them like Terraform's) — keep them in lockstep with the four `EntHomeAccess.<domain>.json` files.
 
 Deploy using the AWS CLI:
 
@@ -170,11 +170,15 @@ Or deploy via the AWS Console:
 |--------|-------------|
 | `RoleArn` | The ARN of the role |
 | `RoleName` | The name of the role |
-| `PolicyArn` | The ARN of the policy |
+| `PolicyArnCompute` | The ARN of the Compute & Networking managed policy |
+| `PolicyArnData` | The ARN of the Data & Storage managed policy |
+| `PolicyArnSecurity` | The ARN of the Identity & Security managed policy |
+| `PolicyArnPlatform` | The ARN of the Observability & Platform managed policy |
+| `PolicyArn` | Deprecated — the Identity & Security policy ARN, kept for backward compatibility; use the per-domain outputs |
 
 ### CloudFormation (auto-callback variant)
 
-`cloudformation/template-autocomplete.yaml` is a sibling template that creates the same IAM role and policy as `template.yaml` and additionally bundles a one-shot custom-resource Lambda. On stack creation the Lambda HMAC-signs the new role's ARN and POSTs it back to Ent so the tenant deployment starts automatically — no manual hand-off of the Role ARN.
+`cloudformation/template-autocomplete.yaml` is a sibling template that creates the same IAM role and four managed policies as `template.yaml` and additionally bundles a one-shot custom-resource Lambda. On stack creation the Lambda HMAC-signs the new role's ARN and POSTs it back to Ent so the tenant deployment starts automatically — no manual hand-off of the Role ARN.
 
 This variant is intended to be launched from a Launch Stack URL emailed to you by Ent. The URL pre-fills the `EntCallbackUrl` and `EntWebhookSecret` parameters; without them the Lambda has nowhere to call back to. **Do not deploy this template manually.** If you are deploying by hand, use `template.yaml` instead and email the Role ARN back as described above.
 
