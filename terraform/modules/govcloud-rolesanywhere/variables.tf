@@ -54,7 +54,7 @@ variable "tags" {
   default     = {}
 }
 
-variable "policy_arn" {
-  description = "ARN of the permission policy to attach to the deploy role (the GovCloud-pruned deploy-permissions policy)."
-  type        = string
+variable "policy_arns" {
+  description = "ARNs of the permission policies to attach to the deploy role (the four functional, GovCloud-pruned deploy-permissions policies). One role-policy attachment is created per ARN."
+  type        = list(string)
 }

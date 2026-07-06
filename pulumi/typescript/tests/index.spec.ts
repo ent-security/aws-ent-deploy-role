@@ -32,15 +32,22 @@ describe('EntDeployRole (Pulumi TS)', () => {
     infra = require('../index');
   });
 
-  it('creates a managed policy named EntHomeAccess', (done) => {
-    infra.policy.name.apply((name: string) => {
-      try {
-        assert.strictEqual(name, 'EntHomeAccess');
-        done();
-      } catch (e) {
-        done(e);
-      }
-    });
+  it('creates the four functional managed policies', (done) => {
+    // The permission set is split across four functional managed policies, all attached to the role.
+    assert.strictEqual(infra.policies.length, 4);
+    pulumi
+      .all(infra.policies.map((p) => p.name))
+      .apply((names: (string | undefined)[]) => {
+        try {
+          assert.deepStrictEqual(
+            [...names].sort(),
+            ['EntHomeAccessCompute', 'EntHomeAccessData', 'EntHomeAccessPlatform', 'EntHomeAccessSecurity'],
+          );
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
   });
 
   it('creates a role named HomeProdAssumeAdmin by default', (done) => {
@@ -69,7 +76,10 @@ describe('EntDeployRole (Pulumi TS)', () => {
   });
 
   it('rewrites policy ARNs to the deploy partition', (done) => {
-    infra.policy.policy.apply((policyStr: string | undefined) => {
+    // The S3 statement lives in the Data & Storage functional policy (index 1). Assert its ARNs are
+    // rewritten to the deploy partition rather than left as the commercial `aws` partition.
+    const dataPolicy = infra.policies[1];
+    dataPolicy.policy.apply((policyStr: string | undefined) => {
       try {
         assert.ok(
           policyStr && policyStr.includes('arn:aws-us-gov:s3:::'),

@@ -1,5 +1,5 @@
 variable "policy_name" {
-  description = "Name of the IAM permission policy"
+  description = "Name PREFIX for the IAM permission policies. The permission set is split across four functional managed policies; this prefix is suffixed per domain to produce <prefix>Compute, <prefix>Data, <prefix>Security, and <prefix>Platform. Overriding it renames all four in lockstep."
   type        = string
   default     = "EntHomeAccess"
 }
@@ -20,4 +20,10 @@ variable "excluded_statement_sids" {
   description = "Statement Sids to drop from the shared policy for this partition. Used to remove statements for services that do not exist in the target partition (e.g. CostAndUsageReportAccess / BCMDataExportsAccess in GovCloud). Empty (the commercial default) renders the full policy."
   type        = list(string)
   default     = []
+}
+
+variable "tags" {
+  description = "Tags applied to the managed policies, mirroring the tags on the deploy role (e.g. the FinOps Service / Environment keys). Threaded from the root so the policies carry the same tags the role does."
+  type        = map(string)
+  default     = {}
 }

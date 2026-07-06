@@ -12,8 +12,8 @@ import (
 )
 
 type deployed struct {
-	Policy *iam.Policy
-	Role   *iam.Role
+	Policies []*iam.Policy
+	Role     *iam.Role
 }
 
 const (
@@ -21,9 +21,29 @@ const (
 	defaultRoleName         = "HomeProdAssumeAdmin"
 	defaultRolePath         = "/"
 	defaultRoleDescription  = "Role that allows Ent Home to assume AdministratorAccess role"
-	policyName              = "EntHomeAccess"
+	policyNamePrefix        = "EntHomeAccess"
 	policyDescription       = "Custom policy for permissions needed by Ent Home to deploy and manage resources in customer accounts. This policy is attached to the role that Ent Home assumes when deploying resources in customer accounts."
+	// Suffix of the functional policy whose ARN backs the deprecated single-ARN policyArn export.
+	compatPolicySuffix = "Security"
 )
+
+// policyFile pairs an authoritative functional policy file with the suffix appended to
+// policyNamePrefix to name its managed policy.
+type policyFile struct {
+	Filename string
+	Suffix   string
+}
+
+// The permission set is split across four functional managed policies so each stays under AWS's
+// 6144-character managed-policy limit. The policies are named policyNamePrefix+Suffix (default
+// EntHomeAccess{Compute,Data,Security,Platform}). The union of the four is the complete permission
+// set. Keep this in lockstep with the Terraform statement_group map and the files.
+var policyFiles = []policyFile{
+	{"EntHomeAccess.compute-network.json", "Compute"},
+	{"EntHomeAccess.data-storage.json", "Data"},
+	{"EntHomeAccess.identity-security.json", "Security"},
+	{"EntHomeAccess.observability-platform.json", "Platform"},
+}
 
 func readRepoFile(name string) (string, error) {
 	// Resolve repo root: pulumi/go/ -> pulumi/ -> repo root
@@ -47,33 +67,38 @@ func deploy(
 	roleDescription string,
 	tags map[string]string,
 ) (*deployed, error) {
-	policyJSON, err := readRepoFile("policy.json")
-	if err != nil {
-		return nil, err
-	}
-	// policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
-	// partition to the one we're deploying into so the policy works in commercial
-	// and GovCloud (aws-us-gov) alike.
+	// The functional policy files hold the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+	// partition to the one we're deploying into so the policies work in commercial and GovCloud
+	// (aws-us-gov) alike. Each file becomes its own managed policy, mirroring the Terraform module.
 	part, err := aws.GetPartition(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	policyJSON = strings.ReplaceAll(policyJSON, "arn:aws:", "arn:"+part.Partition+":")
+
+	policies := make([]*iam.Policy, 0, len(policyFiles))
+	for _, pf := range policyFiles {
+		policyJSON, err := readRepoFile(pf.Filename)
+		if err != nil {
+			return nil, err
+		}
+		policyJSON = strings.ReplaceAll(policyJSON, "arn:aws:", "arn:"+part.Partition+":")
+		policy, err := iam.NewPolicy(ctx, "EntHomeAccess"+pf.Suffix, &iam.PolicyArgs{
+			Name:        pulumi.String(policyNamePrefix + pf.Suffix),
+			Description: pulumi.String(policyDescription),
+			Path:        pulumi.String("/"),
+			Policy:      pulumi.String(policyJSON),
+		})
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, policy)
+	}
+
 	trustRaw, err := readRepoFile("role.json")
 	if err != nil {
 		return nil, err
 	}
 	trustJSON := strings.ReplaceAll(trustRaw, "<ENT_AWS_ACCOUNT_ARN>", entAwsAccountArn)
-
-	policy, err := iam.NewPolicy(ctx, "EntHomeAccess", &iam.PolicyArgs{
-		Name:        pulumi.String(policyName),
-		Description: pulumi.String(policyDescription),
-		Path:        pulumi.String("/"),
-		Policy:      pulumi.String(policyJSON),
-	})
-	if err != nil {
-		return nil, err
-	}
 
 	pulumiTags := pulumi.StringMap{}
 	for k, v := range tags {
@@ -91,15 +116,18 @@ func deploy(
 		return nil, err
 	}
 
-	_, err = iam.NewRolePolicyAttachment(ctx, "EntDeployRoleAttachment", &iam.RolePolicyAttachmentArgs{
-		Role:      role.Name,
-		PolicyArn: policy.Arn,
-	})
-	if err != nil {
-		return nil, err
+	// One attachment per functional policy.
+	for i, policy := range policies {
+		_, err = iam.NewRolePolicyAttachment(ctx, "EntDeployRoleAttachment"+policyFiles[i].Suffix, &iam.RolePolicyAttachmentArgs{
+			Role:      role.Name,
+			PolicyArn: policy.Arn,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return &deployed{Policy: policy, Role: role}, nil
+	return &deployed{Policies: policies, Role: role}, nil
 }
 
 func main() {
@@ -132,7 +160,19 @@ func main() {
 
 		ctx.Export("roleArn", result.Role.Arn)
 		ctx.Export("roleName", result.Role.Name)
-		ctx.Export("policyArn", result.Policy.Arn)
+
+		policyArns := make(pulumi.StringArray, 0, len(result.Policies))
+		for _, p := range result.Policies {
+			policyArns = append(policyArns, p.Arn)
+		}
+		ctx.Export("policyArns", policyArns.ToStringArrayOutput())
+
+		// Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
+		for i, pf := range policyFiles {
+			if pf.Suffix == compatPolicySuffix {
+				ctx.Export("policyArn", result.Policies[i].Arn)
+			}
+		}
 		return nil
 	})
 }

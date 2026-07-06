@@ -31,7 +31,7 @@ run "external_id_splits_tagsession_out_from_condition" {
   variables {
     ent_aws_account_arn  = "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
     role_sts_external_id = "test-external-id-123"
-    policy_arn           = "arn:aws:iam::aws:policy/DummyForTest"
+    policy_arns          = ["arn:aws:iam::aws:policy/DummyForTest"]
   }
 
   # The core assertion: with an ExternalId set, sts:TagSession appears in a statement that carries
@@ -71,7 +71,7 @@ run "no_external_id_keeps_single_combined_statement" {
   variables {
     ent_aws_account_arn  = "arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005"
     role_sts_external_id = ""
-    policy_arn           = "arn:aws:iam::aws:policy/DummyForTest"
+    policy_arns          = ["arn:aws:iam::aws:policy/DummyForTest"]
   }
 
   assert {

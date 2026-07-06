@@ -1,0 +1,123 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CertificateManagerAccess",
+            "Effect": "Allow",
+            "Action": [
+                "acm:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:*"
+            ],
+            "Resource": [
+                "arn:aws:iam::*:role/e???????????????-*",
+                "arn:aws:iam::*:policy/e???????????????-*",
+                "arn:aws:iam::*:instance-profile/e???????????????-*",
+                "arn:aws:iam::*:policy/AmazonEKS_*",
+                "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/*"
+            ]
+        },
+        {
+            "Sid": "IAMSessionContextAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMServiceLinkedRoleAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateServiceLinkedRole"
+            ],
+            "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+            "Condition": {
+                "StringLike": {
+                    "iam:AWSServiceName": [
+                        "eks.amazonaws.com",
+                        "eks-nodegroup.amazonaws.com",
+                        "eks-fargate-pods.amazonaws.com",
+                        "elasticloadbalancing.amazonaws.com",
+                        "rds.amazonaws.com",
+                        "elasticache.amazonaws.com",
+                        "opensearchservice.amazonaws.com",
+                        "backup.amazonaws.com",
+                        "elasticfilesystem.amazonaws.com"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "KMSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "kms:*"
+            ],
+            "Resource": [
+                "arn:aws:kms:*:*:key/*",
+                "arn:aws:kms:*:*:alias/e???????????????-*",
+                "arn:aws:kms:*:*:alias/eks/e???????????????-*"
+            ]
+        },
+        {
+            "Sid": "KMSAccountLevelAccess",
+            "Effect": "Allow",
+            "Action": [
+                "kms:CreateKey",
+                "kms:ListAliases"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SecretsManagerAccess",
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:*"
+            ],
+            "Resource": [
+                "arn:aws:secretsmanager:*:*:secret:e???????????????-*",
+                "arn:aws:secretsmanager:*:*:secret:mks*",
+                "arn:aws:secretsmanager:*:*:secret:rds!*",
+                "arn:aws:secretsmanager:*:*:secret:grafana/????????-????-????-????-????????????-*/*"
+            ]
+        },
+        {
+            "Sid": "STSAssumeRoleAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole",
+                "sts:TagSession",
+                "sts:AssumeRoleWithWebIdentity"
+            ],
+            "Resource": "arn:aws:iam::*:role/e???????????????-*"
+        },
+        {
+            "Sid": "STSIdentityAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity",
+                "sts:DecodeAuthorizationMessage",
+                "sts:GetAccessKeyInfo"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "WAFv2Access",
+            "Effect": "Allow",
+            "Action": [
+                "wafv2:*"
+            ],
+            "Resource": [
+                "arn:aws:wafv2:*:*:regional/webacl/e???????????????-*/*",
+                "arn:aws:wafv2:*:*:global/webacl/e???????????????-*/*"
+            ]
+        }
+    ]
+}

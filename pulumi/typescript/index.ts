@@ -14,25 +14,43 @@ const roleDescription =
   'Role that allows Ent Home to assume AdministratorAccess role';
 const tags = config.getObject<Record<string, string>>('tags') ?? {};
 
+const policyNamePrefix = 'EntHomeAccess';
+const policyDescription =
+  'Custom policy for permissions needed by Ent Home to deploy and manage resources in customer accounts. This policy is attached to the role that Ent Home assumes when deploying resources in customer accounts.';
+
+// The permission set is split across four functional managed policies so each stays under AWS's
+// 6144-character managed-policy limit. Each entry is [authoritative file, name suffix]; the policy
+// is named `${prefix}${suffix}` (EntHomeAccess{Compute,Data,Security,Platform}). The union of the
+// four is the complete permission set. Keep this in lockstep with the Terraform
+// statement_group map and the files.
+const POLICY_FILES: ReadonlyArray<readonly [string, string]> = [
+  ['EntHomeAccess.compute-network.json', 'Compute'],
+  ['EntHomeAccess.data-storage.json', 'Data'],
+  ['EntHomeAccess.identity-security.json', 'Security'],
+  ['EntHomeAccess.observability-platform.json', 'Platform'],
+];
+// Suffix of the functional policy whose ARN backs the deprecated single-ARN `policyArn` export.
+const COMPAT_POLICY_SUFFIX = 'Security';
+
 // Resolve repo root: pulumi/typescript/ -> pulumi/ -> repo root
 const repoRoot = path.resolve(__dirname, '..', '..');
-// policy.json holds the canonical (commercial) `arn:aws:` ARNs. Rewrite the
-// partition to the one we're deploying into so the policy works in commercial
-// and GovCloud (aws-us-gov) alike.
-const policyRaw = fs.readFileSync(path.join(repoRoot, 'policy.json'), 'utf-8');
-const policyJson = aws
-  .getPartitionOutput()
-  .partition.apply((p) => policyRaw.replaceAll('arn:aws:', `arn:${p}:`));
+const partition = aws.getPartitionOutput().partition;
 const trustJson = fs
   .readFileSync(path.join(repoRoot, 'role.json'), 'utf-8')
   .replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn);
 
-export const policy = new aws.iam.Policy('EntHomeAccess', {
-  name: 'EntHomeAccess',
-  description:
-    'Custom policy for permissions needed by Ent Home to deploy and manage resources in customer accounts. This policy is attached to the role that Ent Home assumes when deploying resources in customer accounts.',
-  path: '/',
-  policy: policyJson,
+// The functional policy files hold the canonical (commercial) `arn:aws:` ARNs. Rewrite the
+// partition to the one we're deploying into so the policies work in commercial and GovCloud
+// (aws-us-gov) alike. Each file becomes its own managed policy, mirroring the Terraform module.
+export const policies = POLICY_FILES.map(([filename, suffix]) => {
+  const policyRaw = fs.readFileSync(path.join(repoRoot, filename), 'utf-8');
+  const policyJson = partition.apply((p) => policyRaw.replaceAll('arn:aws:', `arn:${p}:`));
+  return new aws.iam.Policy(`EntHomeAccess${suffix}`, {
+    name: `${policyNamePrefix}${suffix}`,
+    description: policyDescription,
+    path: '/',
+    policy: policyJson,
+  });
 });
 
 export const role = new aws.iam.Role('EntDeployRole', {
@@ -43,10 +61,15 @@ export const role = new aws.iam.Role('EntDeployRole', {
   tags,
 });
 
-new aws.iam.RolePolicyAttachment('EntDeployRoleAttachment', {
-  role: role.name,
-  policyArn: policy.arn,
+// One attachment per functional policy.
+policies.forEach((policy, i) => {
+  new aws.iam.RolePolicyAttachment(`EntDeployRoleAttachment${POLICY_FILES[i][1]}`, {
+    role: role.name,
+    policyArn: policy.arn,
+  });
 });
 
 export const roleArn = role.arn;
-export const policyArn = policy.arn;
+export const policyArns = policies.map((p) => p.arn);
+// Backward-compat single ARN: EntHomeAccessSecurity. Deprecated — use policyArns.
+export const policyArn = policies[POLICY_FILES.findIndex(([, s]) => s === COMPAT_POLICY_SUFFIX)].arn;

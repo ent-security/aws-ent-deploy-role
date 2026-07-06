@@ -14,6 +14,7 @@ provider "aws" {
 module "deploy_permissions" {
   source = "../modules/deploy-permissions"
 
+  tags = var.tags
   # Services absent from GovCloud (billing/Data Exports live in the linked commercial account).
   # The full unavailable-list is discovered during validation (design W4) — add Sids here as
   # GovCloud apply surfaces them. The WAFv2 global (CloudFront) ARN is dropped automatically by
@@ -36,5 +37,5 @@ module "govcloud_rolesanywhere" {
   role_description   = var.role_description
   tags               = var.tags
 
-  policy_arn = module.deploy_permissions.policy_arn
+  policy_arns = module.deploy_permissions.policy_arns
 }

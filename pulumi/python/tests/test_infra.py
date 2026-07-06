@@ -36,11 +36,17 @@ import ent_deploy_role_infra as infra  # noqa: E402  (import after mocks + confi
 
 class TestEntDeployRole(unittest.TestCase):
     @pulumi.runtime.test
-    def test_policy_name(self):
-        def check(name):
-            self.assertEqual(name, "EntHomeAccess")
+    def test_four_functional_policy_names(self):
+        # The permission set is split across four functional managed policies, all attached to the role.
+        self.assertEqual(len(infra.policies), 4)
 
-        return infra.policy.name.apply(check)
+        def check(names):
+            self.assertEqual(
+                sorted(names),
+                ["EntHomeAccessCompute", "EntHomeAccessData", "EntHomeAccessPlatform", "EntHomeAccessSecurity"],
+            )
+
+        return pulumi.Output.all(*[p.name for p in infra.policies.values()]).apply(check)
 
     @pulumi.runtime.test
     def test_role_default_name(self):
@@ -58,8 +64,10 @@ class TestEntDeployRole(unittest.TestCase):
 
     @pulumi.runtime.test
     def test_policy_arns_rewritten_to_partition(self):
+        # The S3 statement lives in the Data & Storage functional policy. Assert its ARNs are
+        # rewritten to the deploy partition rather than left as the commercial `aws` partition.
         def check(policy_str):
             self.assertIn("arn:aws-us-gov:s3:::", policy_str)
             self.assertNotIn("arn:aws:s3:::", policy_str)
 
-        return infra.policy.policy.apply(check)
+        return infra.policies["Data"].policy.apply(check)

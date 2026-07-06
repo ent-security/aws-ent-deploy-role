@@ -1,0 +1,67 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "EC2Access",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ECRAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:*"
+            ],
+            "Resource": "arn:aws:ecr:*:*:repository/e???????????????-*"
+        },
+        {
+            "Sid": "ECRAuthTokenAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EKSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "eks:*"
+            ],
+            "Resource": [
+                "arn:aws:eks:*:*:cluster/e???????????????-*",
+                "arn:aws:eks:*:*:nodegroup/e???????????????-*/*/*",
+                "arn:aws:eks:*:*:access-entry/e???????????????-*/*",
+                "arn:aws:eks:*:*:addon/e???????????????-*/*/*",
+                "arn:aws:eks:*:*:podidentityassociation/e???????????????-*/*"
+            ]
+        },
+        {
+            "Sid": "EKSDescribeAddonVersionsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "eks:DescribeAddonVersions"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ELBAccess",
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "Route53Access",
+            "Effect": "Allow",
+            "Action": [
+                "route53:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

@@ -1,13 +1,20 @@
 # Commercial-partition deploy role (today's behavior). Ent Home reaches this role via
-# sts:AssumeRole. Composes the shared permission policy with the commercial assume-role trust.
+# sts:AssumeRole. Composes the four functional permission policies with the commercial assume-role
+# trust.
 #
-# This root renders identically to the pre-refactor terraform/ root — see the zero-diff test in
-# tests/ and the moved{} blocks in moved.tf that migrate existing state into the new modules.
+# The permission SET is unchanged from the pre-split single EntHomeAccess policy (the union of the
+# four functional policies equals it), but the single EntHomeAccess policy is REPLACED — not renamed
+# — by the four EntHomeAccess{Compute,Data,Security,Platform} policies. An existing tenant's apply
+# destroys the old EntHomeAccess policy and creates the four; the role (HomeProdAssumeAdmin) is
+# unchanged and ends attached to all four. See the migration note in the PR / README. The role move
+# in moved.tf is in-place; there is deliberately no moved block for the policy (a replace, not a
+# rename).
 
 module "deploy_permissions" {
   source = "../modules/deploy-permissions"
 
-  # Commercial gets the full policy: no partition exclusions, ARNs render arn:aws:*.
+  tags = var.tags
+  # Commercial gets the full policy set: no partition exclusions, ARNs render arn:aws:*.
 }
 
 module "commercial_trust" {
@@ -20,5 +27,5 @@ module "commercial_trust" {
   role_description     = var.role_description
   tags                 = var.tags
 
-  policy_arn = module.deploy_permissions.policy_arn
+  policy_arns = module.deploy_permissions.policy_arns
 }

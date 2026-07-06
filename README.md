@@ -72,7 +72,10 @@ tags = {
 |--------|-------------|
 | `role_arn` | The ARN of the role |
 | `role_name` | The name of the role |
-| `policy_arn` | The ARN of the policy |
+| `policy_arns` | ARNs of the four functional permission policies attached to the role |
+| `policy_arn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`). Retained for backward compatibility — use `policy_arns` for the full set. |
+
+The permission set is split across four functional managed policies (see [Managed-policy split](#managed-policy-split)), so `policy_arns` is the real output; the singular `policy_arn` is kept only so pre-split consumers keep resolving.
 
 ### Requirements
 
@@ -134,6 +137,8 @@ onboarding.
 
 ## CloudFormation Usage
 
+> **Note.** The CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) still carry the full permission set inline as a single `EntAdditionalPermissions` managed policy and have **not** been migrated to the four-policy [functional split](#managed-policy-split). Because the full set exceeds AWS's 6144-character single-managed-policy limit, splitting the CFN templates the same way is tracked as a follow-up. Until then, use the Terraform, CDK, Pulumi, or raw-CLI flow (each of which creates the four functional policies) if the inline policy exceeds the limit in your account.
+
 Deploy using the AWS CLI:
 
 ```bash
@@ -185,7 +190,7 @@ The Lambda code is short enough to audit before clicking Create stack — see `c
 
 ## CDK Usage
 
-This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the authoritative `policy.json` and `role.json` at synthesis time.
+This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at synthesis time, creating one managed policy per file and attaching all four to the role.
 
 ### CDK TypeScript
 
@@ -230,11 +235,12 @@ See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
 |---|---|
 | `RoleArn` | The ARN of the role |
 | `RoleName` | The name of the role |
-| `PolicyArn` | The ARN of the policy |
+| `PolicyArnCompute`, `PolicyArnData`, `PolicyArnSecurity`, `PolicyArnPlatform` | ARNs of the four functional permission policies |
+| `PolicyArn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`); retained for backward compatibility |
 
 ## Pulumi Usage
 
-This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the authoritative `policy.json` and `role.json` at deploy time.
+This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at deploy time, creating one managed policy per file and attaching all four to the role.
 
 ### Pulumi TypeScript
 
@@ -290,13 +296,14 @@ See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
 |---|---|
 | `roleArn` | The ARN of the role |
 | `roleName` | The name of the role |
-| `policyArn` | The ARN of the policy |
+| `policyArns` | ARNs of the four functional permission policies attached to the role |
+| `policyArn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`); retained for backward compatibility — use `policyArns` |
 
 ## AWS CLI Usage
 
-Deploy using the AWS CLI with the provided `role.json` and `policy.json` files:
+Deploy using the AWS CLI with the provided `role.json` and the four functional policy files (see [Managed-policy split](#managed-policy-split)). The permission set is split across four managed policies because the full set exceeds AWS's 6144-character single-managed-policy limit; create all four and attach each to the role.
 
-> **Deploying in AWS GovCloud?** `policy.json` ships with commercial `arn:aws:` ARNs — rewrite the partition before running the commands below. See [AWS partitions (GovCloud)](#aws-partitions-govcloud).
+> **Deploying in AWS GovCloud?** The functional policy files ship with commercial `arn:aws:` ARNs — rewrite the partition before running the commands below. See [AWS partitions (GovCloud)](#aws-partitions-govcloud).
 
 1. Update `role.json` with your Ent AWS Account ARN:
 
@@ -337,20 +344,26 @@ aws iam create-role \
   --assume-role-policy-document file://role.json
 ```
 
-3. Create the IAM policy:
+3. Create the four functional IAM policies and attach each to the role. Each file becomes a managed policy named `EntHomeAccess<Domain>`:
 
 ```bash
-aws iam create-policy \
-  --policy-name EntHomePermissions \
-  --policy-document file://policy.json
-```
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+PARTITION="aws"  # use "aws-us-gov" in GovCloud
 
-4. Attach the policy to the role:
-
-```bash
-aws iam attach-role-policy \
-  --role-name HomeProdAssumeAdmin \
-  --policy-arn "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/EntHomePermissions"
+# file:managed-policy-name pairs (one policy per functional domain). Plain list + parameter-expansion
+# split (${pair%%:*} / ${pair##*:}) so this runs on Bash 3.2 (macOS default) — no associative arrays.
+for pair in \
+  "EntHomeAccess.compute-network.json:EntHomeAccessCompute" \
+  "EntHomeAccess.data-storage.json:EntHomeAccessData" \
+  "EntHomeAccess.identity-security.json:EntHomeAccessSecurity" \
+  "EntHomeAccess.observability-platform.json:EntHomeAccessPlatform"; do
+  file="${pair%%:*}"
+  name="${pair##*:}"
+  aws iam create-policy --policy-name "$name" --policy-document "file://$file"
+  aws iam attach-role-policy \
+    --role-name HomeProdAssumeAdmin \
+    --policy-arn "arn:${PARTITION}:iam::${ACCOUNT_ID}:policy/${name}"
+done
 ```
 
 ## Setup
@@ -413,12 +426,13 @@ deployed into, so the same code works in commercial AWS and AWS GovCloud
 There is no flag to set — the partition is detected from the credentials and region
 you deploy with. Two things to know for GovCloud:
 
-- **Raw AWS CLI flow only.** `policy.json` is stored with commercial `arn:aws:` ARNs.
-  The IaC variants above rewrite the partition automatically, but the
-  [AWS CLI Usage](#aws-cli-usage) flow submits the file as-is, so rewrite it first:
+- **Raw AWS CLI flow only.** The functional policy files are stored with commercial `arn:aws:`
+  ARNs. The IaC variants above rewrite the partition automatically, but the
+  [AWS CLI Usage](#aws-cli-usage) flow submits the files as-is, so rewrite them first (the loop in
+  that section already sets `PARTITION="aws-us-gov"` for the attach step):
 
   ```bash
-  sed -i '' 's#arn:aws:#arn:aws-us-gov:#g' policy.json
+  sed -i '' 's#arn:aws:#arn:aws-us-gov:#g' EntHomeAccess.compute-network.json EntHomeAccess.data-storage.json EntHomeAccess.identity-security.json EntHomeAccess.observability-platform.json
   ```
 
 - **Trust principal must match the role's partition.** The Ent account ARN you supply
@@ -434,7 +448,7 @@ aws-ent-deploy-role/
 ├── .github/
 │   └── workflows/
 │       ├── publish.yml          # tags v* → S3/CloudFront publish
-│       └── terraform-check.yml  # fmt + validate + commercial zero-diff guard
+│       └── terraform-check.yml  # size lint + fmt + validate + zero-diff guard
 ├── cdk/
 │   ├── typescript/
 │   └── python/
@@ -445,17 +459,43 @@ aws-ent-deploy-role/
 │   ├── typescript/
 │   ├── python/
 │   └── go/
+├── scripts/
+│   └── check-policy-size.sh     # fails if any functional policy nears the 6144-char IAM limit
 ├── terraform/
 │   ├── modules/
-│   │   ├── deploy-permissions/      # shared IAM permission policy (partition-parameterized)
+│   │   ├── deploy-permissions/      # four functional IAM permission policies (partition-parameterized)
 │   │   ├── commercial-trust/        # assume-role trust + role (commercial)
 │   │   └── govcloud-rolesanywhere/  # trust anchor + profile + role (GovCloud)
 │   ├── commercial/                  # root: deploy-permissions + commercial-trust
 │   └── govcloud/                    # root: deploy-permissions + govcloud-rolesanywhere
 ├── role.json
-├── policy.json
+├── EntHomeAccess.compute-network.json        # functional policy: Compute & Networking
+├── EntHomeAccess.data-storage.json           # functional policy: Data & Storage
+├── EntHomeAccess.identity-security.json      # functional policy: Identity & Security
+├── EntHomeAccess.observability-platform.json # functional policy: Observability & Platform
 └── README.md
 ```
+
+## Managed-policy split
+
+The full permission set exceeds AWS's **6144-character** single-managed-policy hard limit, so it is split across **four functional managed policies** along service-domain boundaries. Each domain is its own authoritative file at the repo root, rendered into its own managed policy and attached to the role:
+
+| File | Managed policy | Domain | Statements |
+|------|----------------|--------|-----------|
+| `EntHomeAccess.compute-network.json` | `EntHomeAccessCompute` | Compute & Networking (EC2, EKS, ECR, ELB, Route 53) | 7 |
+| `EntHomeAccess.data-storage.json` | `EntHomeAccessData` | Data & Storage (S3, RDS, EFS, ElastiCache, Athena, Glue) | 8 |
+| `EntHomeAccess.identity-security.json` | `EntHomeAccessSecurity` | Identity & Security (IAM, STS, KMS, Secrets Manager, ACM, WAFv2) | 10 |
+| `EntHomeAccess.observability-platform.json` | `EntHomeAccessPlatform` | Observability & Platform (CloudWatch, logs, cost/billing, Service Quotas, SNS, SQS, Bedrock, tagging) | 11 |
+
+The managed-policy names come from a name **prefix** (Terraform `var.policy_name`, default `EntHomeAccess`) suffixed per domain — `${prefix}Compute`, `${prefix}Data`, `${prefix}Security`, `${prefix}Platform`. Overriding the prefix renames all four in lockstep.
+
+The split introduced no permission change: before merge, the Sid-keyed union of the four files was validated set-equal to the pre-split single policy via a throwaway reference file built from the previous `policy.json` (since removed — the four files are now the sole source of truth). The Terraform zero-diff test asserts each rendered managed policy matches its `EntHomeAccess.<domain>.json` file, and `scripts/check-policy-size.sh` (wired into CI) fails the build if any functional file approaches the 6144-character limit.
+
+### Migrating an existing tenant
+
+Earlier versions of this module created a **single** `EntHomeAccess` managed policy. Moving to the functional split **replaces** that single policy with the four functional ones: an existing tenant's `terraform apply` (or CDK/Pulumi update) **destroys the old `EntHomeAccess` policy and creates the four `EntHomeAccess{Compute,Data,Security,Platform}` policies**. This is a replace, not a rename or an in-place shrink — there is deliberately no `moved` block claiming otherwise, because the old single policy genuinely goes away.
+
+The **effective permissions are unchanged** (the union of the four equals the old single policy) and the deploy **role keeps its name and is re-attached to all four**. But because the old policy is detached and deleted mid-apply, **run the migration when no tenant deploy is in flight** — a deploy that assumes the role during the brief window between detach and re-attach could see a partial permission set. Outside a deploy, the apply is safe and the role ends correct.
 
 ## Permissions
 
