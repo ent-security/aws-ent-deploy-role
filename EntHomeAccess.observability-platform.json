@@ -105,10 +105,19 @@
             "Effect": "Allow",
             "Action": [
                 "servicequotas:GetServiceQuota",
+                "servicequotas:GetAWSDefaultServiceQuota",
                 "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
                 "servicequotas:RequestServiceQuotaIncrease"
             ],
             "Resource": "arn:aws:servicequotas:*:*:ec2/*"
+        },
+        {
+            "Sid": "ServiceQuotasListAccess",
+            "Effect": "Allow",
+            "Action": [
+                "servicequotas:ListServiceQuotas"
+            ],
+            "Resource": "*"
         }
     ]
 }

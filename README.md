@@ -485,7 +485,7 @@ The full permission set exceeds AWS's **6144-character** single-managed-policy h
 | `EntHomeAccess.compute-network.json` | `EntHomeAccessCompute` | Compute & Networking (EC2, EKS, ECR, ELB, Route 53) | 7 |
 | `EntHomeAccess.data-storage.json` | `EntHomeAccessData` | Data & Storage (S3, RDS, EFS, ElastiCache, Athena, Glue) | 8 |
 | `EntHomeAccess.identity-security.json` | `EntHomeAccessSecurity` | Identity & Security (IAM, STS, KMS, Secrets Manager, ACM, WAFv2) | 10 |
-| `EntHomeAccess.observability-platform.json` | `EntHomeAccessPlatform` | Observability & Platform (CloudWatch, logs, cost/billing, Service Quotas, SNS, SQS, Bedrock, tagging) | 11 |
+| `EntHomeAccess.observability-platform.json` | `EntHomeAccessPlatform` | Observability & Platform (CloudWatch, logs, cost/billing, Service Quotas, SNS, SQS, Bedrock, tagging) | 12 |
 
 The managed-policy names come from a name **prefix** (Terraform `var.policy_name`, default `EntHomeAccess`) suffixed per domain — `${prefix}Compute`, `${prefix}Data`, `${prefix}Security`, `${prefix}Platform`. Overriding the prefix renames all four in lockstep.
 
@@ -529,7 +529,8 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | RDS (describe) | `rds:DescribeDBInstances` | unscoped (terraform provider calls this against `db:*` rather than a specific instance ARN) |
 | Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
-| Service Quotas | `servicequotas:GetServiceQuota`, `servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota`, `servicequotas:RequestServiceQuotaIncrease` | EC2-family quotas (`ec2/*`) — lets ent-platform's capability-aware GPU profile selection read the On-Demand G/VT vCPU quota and file an increase instead of wedging the GPU rollout (quota ARNs are account-global, not tenant-prefixed) |
+| Service Quotas | `servicequotas:GetServiceQuota`, `servicequotas:GetAWSDefaultServiceQuota`, `servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota`, `servicequotas:RequestServiceQuotaIncrease` | EC2-family quotas (`ec2/*`) — lets ent-platform's capability-aware GPU profile selection read the On-Demand G/VT vCPU quota (the applied value, or the AWS default when the account has no applied override) and file an increase instead of wedging the GPU rollout (quota ARNs are account-global, not tenant-prefixed) |
+| Service Quotas (list) | `servicequotas:ListServiceQuotas` | unscoped (`Resource: "*"`) — the list API enumerates a service's quotas and has no resource-level support |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |
 | S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
 | Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), `rds!` (RDS-managed master-password secrets), or `grafana/<tenant-uuid>-<env>/*` (Grafana OAuth config in `platform-monitoring`) |
