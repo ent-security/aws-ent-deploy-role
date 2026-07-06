@@ -27,6 +27,16 @@ Parameters:
     Default: Role that allows HomeDev SSO to assume AdministratorAccess role
     Description: IAM Role description
 
+  PolicyNamePrefix:
+    Type: String
+    Default: EntHomeAccess
+    Description: >
+      Name prefix for the four managed policies, applied as <prefix>Compute,
+      <prefix>Data, <prefix>Security, and <prefix>Platform. Defaults to
+      EntHomeAccess to match the Terraform, CDK, and Pulumi variants. Override it
+      if you need more than one deploy-role stack in the same AWS account, since
+      IAM managed-policy names are account-global.
+
 Conditions:
   HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
 
@@ -34,7 +44,7 @@ Resources:
   EntDeployPolicyCompute:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: EntHomeAccessCompute
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Compute'
       Description: Ent Home deploy permissions (Compute & Networking) — 1 of 4 functional policies
       Path: /
       PolicyDocument:
@@ -84,7 +94,7 @@ Resources:
   EntDeployPolicyData:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: EntHomeAccessData
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Data'
       Description: Ent Home deploy permissions (Data & Storage) — 2 of 4 functional policies
       Path: /
       PolicyDocument:
@@ -155,7 +165,7 @@ Resources:
   EntDeployPolicySecurity:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: EntHomeAccessSecurity
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Security'
       Description: Ent Home deploy permissions (Identity & Security) — 3 of 4 functional policies
       Path: /
       PolicyDocument:
@@ -246,7 +256,7 @@ Resources:
   EntDeployPolicyPlatform:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: EntHomeAccessPlatform
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Platform'
       Description: Ent Home deploy permissions (Observability & Platform) — 4 of 4 functional policies
       Path: /
       PolicyDocument:
