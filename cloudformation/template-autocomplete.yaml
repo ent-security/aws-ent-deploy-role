@@ -55,59 +55,29 @@ Parameters:
     Default: Role that allows HomeDev SSO to assume AdministratorAccess role
     Description: IAM Role description
 
+  PolicyNamePrefix:
+    Type: String
+    Default: EntHomeAccess
+    Description: >
+      Name prefix for the four managed policies, applied as <prefix>Compute,
+      <prefix>Data, <prefix>Security, and <prefix>Platform. Defaults to
+      EntHomeAccess to match the Terraform, CDK, and Pulumi variants. Override it
+      if you need more than one deploy-role stack in the same AWS account, since
+      IAM managed-policy names are account-global.
+
 Conditions:
   HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
 
 Resources:
-  EntDeployPolicy:
+  EntDeployPolicyCompute:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: EntAdditionalPermissions
-      Description: Custom policy for permissions needed by Ent Home to deploy and manage resources in customer accounts
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Compute'
+      Description: Ent Home deploy permissions (Compute & Networking) — 1 of 4 functional policies
       Path: /
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: CertificateManagerAccess
-            Effect: Allow
-            Action:
-              - acm:*
-            Resource: '*'
-          - Sid: AthenaAccess
-            Effect: Allow
-            Action:
-              - athena:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:athena:*:*:workgroup/e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:athena:*:*:datacatalog/e???????????????-*'
-          - Sid: BedrockAccess
-            Effect: Allow
-            Action:
-              - bedrock:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:bedrock:*:*:inference-profile/*'
-              - !Sub 'arn:${AWS::Partition}:bedrock:*:*:application-inference-profile/*'
-              - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/*'
-          - Sid: CostAndUsageReportAccess
-            Effect: Allow
-            Action:
-              - cur:Describe*
-              - cur:Get*
-              - cur:PutReportDefinition
-            Resource: '*'
-          - Sid: BCMDataExportsAccess
-            Effect: Allow
-            Action:
-              - bcm-data-exports:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:bcm-data-exports:*:*:export/*'
-              - !Sub 'arn:${AWS::Partition}:bcm-data-exports:*:*:table/*'
-          - Sid: CloudWatchAccess
-            Effect: Allow
-            Action:
-              - cloudwatch:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:cloudwatch:*:*:alarm:e???????????????-*'
           - Sid: EC2Access
             Effect: Allow
             Action:
@@ -123,13 +93,6 @@ Resources:
             Action:
               - ecr:GetAuthorizationToken
             Resource: '*'
-          - Sid: EFSAccess
-            Effect: Allow
-            Action:
-              - elasticfilesystem:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:elasticfilesystem:*:*:file-system/*'
-              - !Sub 'arn:${AWS::Partition}:elasticfilesystem:*:*:access-point/*'
           - Sid: EKSAccess
             Effect: Allow
             Action:
@@ -145,6 +108,40 @@ Resources:
             Action:
               - eks:DescribeAddonVersions
             Resource: '*'
+          - Sid: ELBAccess
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:*
+            Resource: '*'
+          - Sid: Route53Access
+            Effect: Allow
+            Action:
+              - route53:*
+            Resource: '*'
+
+  EntDeployPolicyData:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Data'
+      Description: Ent Home deploy permissions (Data & Storage) — 2 of 4 functional policies
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AthenaAccess
+            Effect: Allow
+            Action:
+              - athena:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:athena:*:*:workgroup/e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:athena:*:*:datacatalog/e???????????????-*'
+          - Sid: EFSAccess
+            Effect: Allow
+            Action:
+              - elasticfilesystem:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:elasticfilesystem:*:*:file-system/*'
+              - !Sub 'arn:${AWS::Partition}:elasticfilesystem:*:*:access-point/*'
           - Sid: ElastiCacheAccess
             Effect: Allow
             Action:
@@ -154,11 +151,6 @@ Resources:
               - !Sub 'arn:${AWS::Partition}:elasticache:*:*:replicationgroup:e???????????????-*'
               - !Sub 'arn:${AWS::Partition}:elasticache:*:*:parametergroup:e???????????????-*'
               - !Sub 'arn:${AWS::Partition}:elasticache:*:*:subnetgroup:e???????????????-*'
-          - Sid: ELBAccess
-            Effect: Allow
-            Action:
-              - elasticloadbalancing:*
-            Resource: '*'
           - Sid: GlueAccess
             Effect: Allow
             Action:
@@ -167,6 +159,51 @@ Resources:
               - !Sub 'arn:${AWS::Partition}:glue:*:*:catalog'
               - !Sub 'arn:${AWS::Partition}:glue:*:*:database/e???????????????*'
               - !Sub 'arn:${AWS::Partition}:glue:*:*:table/e???????????????*/*'
+          - Sid: RDSAccess
+            Effect: Allow
+            Action:
+              - rds:*
+              - rds-db:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:rds:*:*:db:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:rds:*:*:cluster:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:rds:*:*:pg:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:rds:*:*:subgrp:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:rds:*:*:es:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:rds:*:*:es:db-event-sub-*'
+              - !Sub 'arn:${AWS::Partition}:rds-db:*:*:dbuser:*/*'
+          - Sid: RDSDescribeAccess
+            Effect: Allow
+            Action:
+              - rds:DescribeDBInstances
+            Resource: '*'
+          - Sid: S3Access
+            Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:s3:::e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:s3:::e???????????????-*/*'
+          - Sid: S3ListAllMyBucketsAccess
+            Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+            Resource: '*'
+
+  EntDeployPolicySecurity:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Security'
+      Description: Ent Home deploy permissions (Identity & Security) — 3 of 4 functional policies
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CertificateManagerAccess
+            Effect: Allow
+            Action:
+              - acm:*
+            Resource: '*'
           - Sid: IAMAccess
             Effect: Allow
             Action:
@@ -213,60 +250,6 @@ Resources:
               - kms:CreateKey
               - kms:ListAliases
             Resource: '*'
-          - Sid: CloudWatchLogsAccess
-            Effect: Allow
-            Action:
-              - logs:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:logs:*:*:log-group:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:logs:*:*:log-group:/aws/*/e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:logs:*:*:log-group:/????????-????-????-????-????????????/*'
-          - Sid: CloudWatchLogsDescribeAccess
-            Effect: Allow
-            Action:
-              - logs:DescribeLogGroups
-              - logs:DescribeLogStreams
-            Resource: '*'
-          - Sid: RDSAccess
-            Effect: Allow
-            Action:
-              - rds:*
-              - rds-db:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:rds:*:*:db:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:rds:*:*:cluster:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:rds:*:*:pg:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:rds:*:*:subgrp:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:rds:*:*:es:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:rds:*:*:es:db-event-sub-*'
-              - !Sub 'arn:${AWS::Partition}:rds-db:*:*:dbuser:*/*'
-          - Sid: RDSDescribeAccess
-            Effect: Allow
-            Action:
-              - rds:DescribeDBInstances
-            Resource: '*'
-          - Sid: ResourceGroupsAccess
-            Effect: Allow
-            Action:
-              - resource-groups:*
-            Resource: !Sub 'arn:${AWS::Partition}:resource-groups:*:*:group/e???????????????-*'
-          - Sid: Route53Access
-            Effect: Allow
-            Action:
-              - route53:*
-            Resource: '*'
-          - Sid: S3Access
-            Effect: Allow
-            Action:
-              - s3:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:s3:::e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:s3:::e???????????????-*/*'
-          - Sid: S3ListAllMyBucketsAccess
-            Effect: Allow
-            Action:
-              - s3:ListAllMyBuckets
-            Resource: '*'
           - Sid: SecretsManagerAccess
             Effect: Allow
             Action:
@@ -276,18 +259,6 @@ Resources:
               - !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:mks*'
               - !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:rds!*'
               - !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:grafana/????????-????-????-????-????????????-*/*'
-          - Sid: SNSAccess
-            Effect: Allow
-            Action:
-              - sns:*
-            Resource:
-              - !Sub 'arn:${AWS::Partition}:sns:*:*:e???????????????-*'
-              - !Sub 'arn:${AWS::Partition}:sns:*:*:db-event-notifications'
-          - Sid: SQSAccess
-            Effect: Allow
-            Action:
-              - sqs:*
-            Resource: !Sub 'arn:${AWS::Partition}:sqs:*:*:e???????????????-*'
           - Sid: STSAssumeRoleAccess
             Effect: Allow
             Action:
@@ -309,10 +280,92 @@ Resources:
             Resource:
               - !Sub 'arn:${AWS::Partition}:wafv2:*:*:regional/webacl/e???????????????-*/*'
               - !Sub 'arn:${AWS::Partition}:wafv2:*:*:global/webacl/e???????????????-*/*'
+
+  EntDeployPolicyPlatform:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Platform'
+      Description: Ent Home deploy permissions (Observability & Platform) — 4 of 4 functional policies
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: BedrockAccess
+            Effect: Allow
+            Action:
+              - bedrock:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:bedrock:*:*:inference-profile/*'
+              - !Sub 'arn:${AWS::Partition}:bedrock:*:*:application-inference-profile/*'
+              - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/*'
+          - Sid: CostAndUsageReportAccess
+            Effect: Allow
+            Action:
+              - cur:Describe*
+              - cur:Get*
+              - cur:PutReportDefinition
+            Resource: '*'
+          - Sid: BCMDataExportsAccess
+            Effect: Allow
+            Action:
+              - bcm-data-exports:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:bcm-data-exports:*:*:export/*'
+              - !Sub 'arn:${AWS::Partition}:bcm-data-exports:*:*:table/*'
+          - Sid: CloudWatchAccess
+            Effect: Allow
+            Action:
+              - cloudwatch:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:cloudwatch:*:*:alarm:e???????????????-*'
+          - Sid: CloudWatchLogsAccess
+            Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:logs:*:*:log-group:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:logs:*:*:log-group:/aws/*/e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:logs:*:*:log-group:/????????-????-????-????-????????????/*'
+          - Sid: CloudWatchLogsDescribeAccess
+            Effect: Allow
+            Action:
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+            Resource: '*'
+          - Sid: ResourceGroupsAccess
+            Effect: Allow
+            Action:
+              - resource-groups:*
+            Resource: !Sub 'arn:${AWS::Partition}:resource-groups:*:*:group/e???????????????-*'
+          - Sid: SNSAccess
+            Effect: Allow
+            Action:
+              - sns:*
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:sns:*:*:e???????????????-*'
+              - !Sub 'arn:${AWS::Partition}:sns:*:*:db-event-notifications'
+          - Sid: SQSAccess
+            Effect: Allow
+            Action:
+              - sqs:*
+            Resource: !Sub 'arn:${AWS::Partition}:sqs:*:*:e???????????????-*'
           - Sid: TaggingAccess
             Effect: Allow
             Action:
               - tag:*
+            Resource: '*'
+          - Sid: ServiceQuotasEC2Access
+            Effect: Allow
+            Action:
+              - servicequotas:GetServiceQuota
+              - servicequotas:GetAWSDefaultServiceQuota
+              - servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota
+              - servicequotas:RequestServiceQuotaIncrease
+            Resource: !Sub 'arn:${AWS::Partition}:servicequotas:*:*:ec2/*'
+          - Sid: ServiceQuotasListAccess
+            Effect: Allow
+            Action:
+              - servicequotas:ListServiceQuotas
             Resource: '*'
 
   EntDeployRole:
@@ -351,7 +404,10 @@ Resources:
                 - sts:AssumeRole
                 - sts:TagSession
       ManagedPolicyArns:
-        - !Ref EntDeployPolicy
+        - !Ref EntDeployPolicyCompute
+        - !Ref EntDeployPolicyData
+        - !Ref EntDeployPolicySecurity
+        - !Ref EntDeployPolicyPlatform
 
   CallbackLambdaRole:
     Type: AWS::IAM::Role
@@ -479,8 +535,28 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-RoleName
 
+  PolicyArnCompute:
+    Description: The ARN of the Compute & Networking managed policy
+    Value: !Ref EntDeployPolicyCompute
+    Export:
+      Name: !Sub ${AWS::StackName}-PolicyArnCompute
+  PolicyArnData:
+    Description: The ARN of the Data & Storage managed policy
+    Value: !Ref EntDeployPolicyData
+    Export:
+      Name: !Sub ${AWS::StackName}-PolicyArnData
+  PolicyArnSecurity:
+    Description: The ARN of the Identity & Security managed policy
+    Value: !Ref EntDeployPolicySecurity
+    Export:
+      Name: !Sub ${AWS::StackName}-PolicyArnSecurity
+  PolicyArnPlatform:
+    Description: The ARN of the Observability & Platform managed policy
+    Value: !Ref EntDeployPolicyPlatform
+    Export:
+      Name: !Sub ${AWS::StackName}-PolicyArnPlatform
   PolicyArn:
-    Description: The ARN of the policy
-    Value: !Ref EntDeployPolicy
+    Description: Deprecated — points at the Identity & Security policy for backward compatibility; use the per-domain PolicyArn* outputs
+    Value: !Ref EntDeployPolicySecurity
     Export:
       Name: !Sub ${AWS::StackName}-PolicyArn

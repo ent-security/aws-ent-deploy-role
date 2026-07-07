@@ -337,18 +337,30 @@ locals {
       Resource = "*"
     },
     {
-      # Read the account's "Running On-Demand G and VT instances" vCPU quota and file an increase so
-      # the capability-aware GPU profile selection in ent-platform can degrade to a launchable card (or
-      # raise the quota for a better one) instead of wedging the production-stack rollout on a Pending
-      # GPU pod. Scoped to the EC2 quota namespace -- quota ARNs are account-global, not tenant-prefixed.
+      # Read the account's "Running On-Demand G and VT instances" vCPU quota -- the applied value via
+      # GetServiceQuota, or the AWS default via GetAWSDefaultServiceQuota when the account has no applied
+      # override (GetServiceQuota throws NoSuchResourceException there) -- and file an increase so the
+      # capability-aware GPU profile selection in ent-platform can degrade to a launchable card (or raise
+      # the quota for a better one) instead of wedging the production-stack rollout on a Pending GPU pod.
+      # Scoped to the EC2 quota namespace -- quota ARNs are account-global, not tenant-prefixed.
       Sid    = "ServiceQuotasEC2Access"
       Effect = "Allow"
       Action = [
         "servicequotas:GetServiceQuota",
+        "servicequotas:GetAWSDefaultServiceQuota",
         "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
         "servicequotas:RequestServiceQuotaIncrease",
       ]
       Resource = "arn:${local.partition}:servicequotas:*:*:ec2/*"
+    },
+    {
+      # servicequotas:ListServiceQuotas has no resource-level support (it enumerates a service's quotas
+      # rather than acting on one), so it must be granted account-wide with Resource "*" -- unlike the
+      # quota-scoped Get/Request actions above.
+      Sid      = "ServiceQuotasListAccess"
+      Effect   = "Allow"
+      Action   = ["servicequotas:ListServiceQuotas"]
+      Resource = "*"
     },
   ]
 
@@ -395,6 +407,7 @@ locals {
     CostAndUsageReportAccess     = "observability-platform"
     BCMDataExportsAccess         = "observability-platform"
     ServiceQuotasEC2Access       = "observability-platform"
+    ServiceQuotasListAccess      = "observability-platform"
     ResourceGroupsAccess         = "observability-platform"
     TaggingAccess                = "observability-platform"
     SNSAccess                    = "observability-platform"
