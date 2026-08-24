@@ -189,6 +189,11 @@ Resources:
             Action:
               - s3:ListAllMyBuckets
             Resource: '*'
+          - Sid: S3AccountPublicAccessBlockAccess
+            Effect: Allow
+            Action:
+              - s3:GetAccountPublicAccessBlock
+            Resource: '*'
 
   EntDeployPolicySecurity:
     Type: AWS::IAM::ManagedPolicy

@@ -274,6 +274,12 @@ locals {
       Resource = "*"
     },
     {
+      Sid      = "S3AccountPublicAccessBlockAccess"
+      Effect   = "Allow"
+      Action   = ["s3:GetAccountPublicAccessBlock"]
+      Resource = "*"
+    },
+    {
       Sid    = "SecretsManagerAccess"
       Effect = "Allow"
       Action = ["secretsmanager:*"]
@@ -379,14 +385,15 @@ locals {
     Route53Access                  = "compute-network"
 
     # Data & Storage -> EntHomeAccessData (EntHomeAccess.data-storage.json)
-    S3Access                 = "data-storage"
-    S3ListAllMyBucketsAccess = "data-storage"
-    RDSAccess                = "data-storage"
-    RDSDescribeAccess        = "data-storage"
-    EFSAccess                = "data-storage"
-    ElastiCacheAccess        = "data-storage"
-    AthenaAccess             = "data-storage"
-    GlueAccess               = "data-storage"
+    S3Access                         = "data-storage"
+    S3ListAllMyBucketsAccess         = "data-storage"
+    S3AccountPublicAccessBlockAccess = "data-storage"
+    RDSAccess                        = "data-storage"
+    RDSDescribeAccess                = "data-storage"
+    EFSAccess                        = "data-storage"
+    ElastiCacheAccess                = "data-storage"
+    AthenaAccess                     = "data-storage"
+    GlueAccess                       = "data-storage"
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
     IAMAccess                  = "identity-security"
