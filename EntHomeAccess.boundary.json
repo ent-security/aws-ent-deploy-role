@@ -1,0 +1,60 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "BoundaryBaseline",
+            "Effect": "Allow",
+            "Action": [
+                "acm:*",
+                "athena:*",
+                "bcm-data-exports:*",
+                "bedrock:*",
+                "cloudwatch:*",
+                "cur:Describe*",
+                "cur:Get*",
+                "cur:PutReportDefinition",
+                "ec2:*",
+                "ecr:*",
+                "eks:*",
+                "elasticache:*",
+                "elasticfilesystem:*",
+                "elasticloadbalancing:*",
+                "glue:*",
+                "kms:*",
+                "logs:*",
+                "rds:*",
+                "rds-db:*",
+                "resource-groups:*",
+                "route53:*",
+                "s3:*",
+                "secretsmanager:*",
+                "servicequotas:GetAWSDefaultServiceQuota",
+                "servicequotas:GetServiceQuota",
+                "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
+                "servicequotas:ListServiceQuotas",
+                "servicequotas:RequestServiceQuotaIncrease",
+                "sns:*",
+                "sqs:*",
+                "tag:*",
+                "wafv2:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "BoundaryDenyIAM",
+            "Effect": "Deny",
+            "Action": "iam:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "BoundaryDenySTSAssumeRole",
+            "Effect": "Deny",
+            "Action": [
+                "sts:AssumeRole",
+                "sts:AssumeRoleWithWebIdentity",
+                "sts:TagSession"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

@@ -162,6 +162,45 @@ locals {
       ]
     },
     {
+      # Closes the privilege-escalation gap in IAMAccess: that statement grants iam:* (including
+      # iam:CreateRole/PutRolePolicy/AttachRolePolicy) on role/policy/instance-profile resources
+      # matching the same e???????????????-* glob that STSAssumeRoleAccess grants sts:AssumeRole on.
+      # IAM authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE resource, not the
+      # policy document being attached -- so without this, the deploy role could create a new role
+      # under the glob, attach an unbounded policy to it, then self-assume it via the
+      # already-granted sts:AssumeRole for full privilege escalation, using only permissions it
+      # already has.
+      #
+      # The fix: deny iam:CreateRole under the glob unless the caller supplies the
+      # EntHomeAccessBoundary permissions boundary. A permissions boundary caps a role's EFFECTIVE
+      # permissions to the intersection of its identity-based policies and the boundary, regardless
+      # of what gets attached later -- so PutRolePolicy/AttachRolePolicy need no matching
+      # constraint of their own; whatever they attach is already capped by the boundary set at
+      # creation (see IAMBoundaryProtection below, which stops the boundary from being removed).
+      # StringNotLike (not StringNotEquals) so the account-id wildcard in the boundary ARN matches
+      # literally rather than needing an exact per-account value.
+      Sid      = "IAMBoundaryEnforcement"
+      Effect   = "Deny"
+      Action   = "iam:CreateRole"
+      Resource = "arn:${local.partition}:iam::*:role/e???????????????-*"
+      Condition = {
+        StringNotLike = {
+          "iam:PermissionsBoundary" = "arn:${local.partition}:iam::*:policy/${var.policy_name}Boundary"
+        }
+      }
+    },
+    {
+      # Without this, the deploy role could set EntHomeAccessBoundary at CreateRole time (satisfying
+      # IAMBoundaryEnforcement above) and then immediately strip it via iam:PutRolePermissionsBoundary
+      # (swap in a no-op boundary) or iam:DeleteRolePermissionsBoundary, defeating the enforcement.
+      # Explicit Deny always wins over the iam:* Allow in IAMAccess, so the boundary can never be
+      # changed or removed once a role under the glob has one.
+      Sid      = "IAMBoundaryProtection"
+      Effect   = "Deny"
+      Action   = ["iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary"]
+      Resource = "arn:${local.partition}:iam::*:role/e???????????????-*"
+    },
+    {
       Sid      = "IAMSessionContextAccess"
       Effect   = "Allow"
       Action   = ["iam:GetRole"]
@@ -397,6 +436,8 @@ locals {
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
     IAMAccess                  = "identity-security"
+    IAMBoundaryEnforcement     = "identity-security"
+    IAMBoundaryProtection      = "identity-security"
     IAMSessionContextAccess    = "identity-security"
     IAMServiceLinkedRoleAccess = "identity-security"
     STSAssumeRoleAccess        = "identity-security"
@@ -451,6 +492,98 @@ resource "aws_iam_policy" "this" {
   policy = jsonencode({
     Version   = "2012-10-17"
     Statement = local.grouped_statements[each.key]
+  })
+
+  tags = var.tags
+}
+
+# Permissions boundary for IAMBoundaryEnforcement above. NOT attached to the deploy role itself --
+# it would strip the deploy role's own iam:*/sts:AssumeRole grants on the glob, breaking it. It
+# exists only to be referenced by ARN when the deploy role creates a new role under
+# role/e???????????????-*, capping that new role's effective permissions regardless of what policy
+# gets attached to it.
+#
+# BoundaryBaseline is deliberately NOT "Allow *": that would let a role created under the glob,
+# with (say) AdministratorAccess attached, exercise the full AWS surface -- Lambda, Organizations,
+# every other account's resources -- once capped only by "deny iam/sts". Instead it allow-lists the
+# exact same service actions the four functional policies above already grant (everything except
+# iam:*/sts:*, which stay hard-denied below), so a created role can never gain more service-level
+# reach than the deploy role itself already has. Keep this action list in lockstep with
+# local.all_statements above.
+#
+# Named outside the e???????????????-* glob (EntHomeAccessBoundary, not e???????????????-*) so the
+# IAMAccess statement's own iam:* grant -- scoped to that glob -- can't modify or delete it.
+#
+# path is hardcoded to "/" (not var.policy_path): IAMBoundaryEnforcement's condition ARN
+# (arn:${partition}:iam::*:policy/${var.policy_name}Boundary) assumes the root path, and every
+# other IaC variant (CFN, CDK, Pulumi) hardcodes "/" for this policy too. If var.policy_path is
+# ever wired in here, the condition ARN above must be updated to match.
+#
+# No partition templating needed: none of the actions/resources below carry ARNs.
+resource "aws_iam_policy" "boundary" {
+  name        = "${var.policy_name}Boundary"
+  description = "Permissions boundary attached (via iam:PermissionsBoundary at CreateRole time) to any IAM role the deploy role creates under the e???????????????-* glob. Not attached to the deploy role itself -- referenced only by ARN in the IAMBoundaryEnforcement Deny condition."
+  path        = "/"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "BoundaryBaseline"
+        Effect = "Allow"
+        Action = [
+          "acm:*",
+          "athena:*",
+          "bcm-data-exports:*",
+          "bedrock:*",
+          "cloudwatch:*",
+          "cur:Describe*",
+          "cur:Get*",
+          "cur:PutReportDefinition",
+          "ec2:*",
+          "ecr:*",
+          "eks:*",
+          "elasticache:*",
+          "elasticfilesystem:*",
+          "elasticloadbalancing:*",
+          "glue:*",
+          "kms:*",
+          "logs:*",
+          "rds:*",
+          "rds-db:*",
+          "resource-groups:*",
+          "route53:*",
+          "s3:*",
+          "secretsmanager:*",
+          "servicequotas:GetAWSDefaultServiceQuota",
+          "servicequotas:GetServiceQuota",
+          "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
+          "servicequotas:ListServiceQuotas",
+          "servicequotas:RequestServiceQuotaIncrease",
+          "sns:*",
+          "sqs:*",
+          "tag:*",
+          "wafv2:*",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "BoundaryDenyIAM"
+        Effect   = "Deny"
+        Action   = "iam:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "BoundaryDenySTSAssumeRole"
+        Effect = "Deny"
+        Action = [
+          "sts:AssumeRole",
+          "sts:AssumeRoleWithWebIdentity",
+          "sts:TagSession",
+        ]
+        Resource = "*"
+      },
+    ]
   })
 
   tags = var.tags

@@ -63,6 +63,17 @@ class TestEntDeployRole(unittest.TestCase):
         return infra.role.assume_role_policy.apply(check)
 
     @pulumi.runtime.test
+    def test_boundary_policy_separate_from_functional_policies(self):
+        # The boundary policy caps roles the deploy role creates -- it must not be
+        # attached to the deploy role, so it lives outside the `policies` dict/loop.
+        self.assertNotIn("Boundary", infra.policies)
+
+        def check(name):
+            self.assertEqual(name, "EntHomeAccessBoundary")
+
+        return infra.boundary_policy.name.apply(check)
+
+    @pulumi.runtime.test
     def test_policy_arns_rewritten_to_partition(self):
         # The S3 statement lives in the Data & Storage functional policy. Assert its ARNs are
         # rewritten to the deploy partition rather than left as the commercial `aws` partition.

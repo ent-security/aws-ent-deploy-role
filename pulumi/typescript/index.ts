@@ -53,6 +53,20 @@ export const policies = POLICY_FILES.map(([filename, suffix]) => {
   });
 });
 
+// Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json). NOT
+// attached to the deploy role itself below -- it would strip the deploy role's own
+// iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN when
+// the deploy role creates a new role under role/e???????????????-*, capping that new role's
+// effective permissions regardless of what policy gets attached to it. No partition rewrite needed:
+// its Action/Resource entries carry no ARNs.
+export const boundaryPolicy = new aws.iam.Policy('EntHomeAccessBoundary', {
+  name: `${policyNamePrefix}Boundary`,
+  description:
+    'Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.',
+  path: '/',
+  policy: fs.readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary.json'), 'utf-8'),
+});
+
 export const role = new aws.iam.Role('EntDeployRole', {
   name: roleName,
   path: rolePath,
@@ -73,3 +87,4 @@ export const roleArn = role.arn;
 export const policyArns = policies.map((p) => p.arn);
 // Backward-compat single ARN: EntHomeAccessSecurity. Deprecated — use policyArns.
 export const policyArn = policies[POLICY_FILES.findIndex(([, s]) => s === COMPAT_POLICY_SUFFIX)].arn;
+export const boundaryPolicyArn = boundaryPolicy.arn;
