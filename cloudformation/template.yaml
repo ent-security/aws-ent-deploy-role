@@ -191,6 +191,32 @@ Resources:
               - !Sub 'arn:${AWS::Partition}:iam::*:instance-profile/e???????????????-*'
               - !Sub 'arn:${AWS::Partition}:iam::*:policy/AmazonEKS_*'
               - !Sub 'arn:${AWS::Partition}:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/*'
+          # Closes a privilege-escalation gap: IAMAccess above grants iam:CreateRole/PutRolePolicy/
+          # AttachRolePolicy on the same role/e???????????????-* glob that STSAssumeRoleAccess grants
+          # sts:AssumeRole on. IAM authorizes those actions against the ROLE resource, not the policy
+          # document being attached, so without this a deploy role could create a role under the
+          # glob, attach an unbounded policy to it, then self-assume it via the already-granted
+          # sts:AssumeRole for full privilege escalation. Deny CreateRole unless the caller supplies
+          # the EntHomeAccessBoundary permissions boundary; PutRolePolicy/AttachRolePolicy need no
+          # matching constraint since a permissions boundary caps effective permissions regardless
+          # of what's attached later, as long as it can't be removed (see IAMBoundaryProtection).
+          - Sid: IAMBoundaryEnforcement
+            Effect: Deny
+            Action:
+              - iam:CreateRole
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
+            Condition:
+              StringNotLike:
+                'iam:PermissionsBoundary': !Sub 'arn:${AWS::Partition}:iam::*:policy/${PolicyNamePrefix}Boundary'
+          # Without this, the deploy role could satisfy IAMBoundaryEnforcement at CreateRole time
+          # and then immediately strip the boundary via PutRolePermissionsBoundary/
+          # DeleteRolePermissionsBoundary. Explicit Deny always wins over the iam:* Allow above.
+          - Sid: IAMBoundaryProtection
+            Effect: Deny
+            Action:
+              - iam:DeleteRolePermissionsBoundary
+              - iam:PutRolePermissionsBoundary
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
           - Sid: IAMSessionContextAccess
             Effect: Allow
             Action:
@@ -345,6 +371,69 @@ Resources:
               - servicequotas:ListServiceQuotas
             Resource: '*'
 
+  # Permissions boundary for IAMBoundaryEnforcement (in EntDeployPolicySecurity). NOT attached to
+  # EntDeployRole itself via ManagedPolicyArns below -- it would strip EntDeployRole's own
+  # iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN
+  # when EntDeployRole creates a new role under role/e???????????????-*, capping that new role's
+  # effective permissions regardless of what policy gets attached to it. Named outside the
+  # e???????????????-* glob so IAMAccess (scoped to that glob) can't modify or delete it.
+  EntDeployPolicyBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}Boundary'
+      Description: Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: BoundaryBaseline
+            Effect: Allow
+            Action:
+              - acm:*
+              - athena:*
+              - bcm-data-exports:*
+              - bedrock:*
+              - cloudwatch:*
+              - cur:Describe*
+              - cur:Get*
+              - cur:PutReportDefinition
+              - ec2:*
+              - ecr:*
+              - eks:*
+              - elasticache:*
+              - elasticfilesystem:*
+              - elasticloadbalancing:*
+              - glue:*
+              - kms:*
+              - logs:*
+              - rds:*
+              - rds-db:*
+              - resource-groups:*
+              - route53:*
+              - s3:*
+              - secretsmanager:*
+              - servicequotas:GetAWSDefaultServiceQuota
+              - servicequotas:GetServiceQuota
+              - servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota
+              - servicequotas:ListServiceQuotas
+              - servicequotas:RequestServiceQuotaIncrease
+              - sns:*
+              - sqs:*
+              - tag:*
+              - wafv2:*
+            Resource: '*'
+          - Sid: BoundaryDenyIAM
+            Effect: Deny
+            Action: iam:*
+            Resource: '*'
+          - Sid: BoundaryDenySTSAssumeRole
+            Effect: Deny
+            Action:
+              - sts:AssumeRole
+              - sts:AssumeRoleWithWebIdentity
+              - sts:TagSession
+            Resource: '*'
+
   EntDeployRole:
     Type: AWS::IAM::Role
     Properties:
@@ -424,3 +513,8 @@ Outputs:
     Value: !Ref EntDeployPolicySecurity
     Export:
       Name: !Sub ${AWS::StackName}-PolicyArn
+  PolicyArnBoundary:
+    Description: The ARN of the permissions-boundary policy applied to IAM roles the deploy role creates under role/e???????????????-*. Not attached to the deploy role itself.
+    Value: !Ref EntDeployPolicyBoundary
+    Export:
+      Name: !Sub ${AWS::StackName}-PolicyArnBoundary

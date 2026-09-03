@@ -75,6 +75,20 @@ describe('EntDeployRole (Pulumi TS)', () => {
     });
   });
 
+  it('creates a separate boundary policy not attached to the role', (done) => {
+    // The boundary policy caps roles the deploy role creates -- it must not be
+    // attached to the deploy role, so it lives outside the `policies` array.
+    assert.strictEqual(infra.policies.length, 4);
+    infra.boundaryPolicy.name.apply((name: string | undefined) => {
+      try {
+        assert.strictEqual(name, 'EntHomeAccessBoundary');
+        done();
+      } catch (e) {
+        done(e);
+      }
+    });
+  });
+
   it('rewrites policy ARNs to the deploy partition', (done) => {
     // The S3 statement lives in the Data & Storage functional policy (index 1). Assert its ARNs are
     // rewritten to the deploy partition rather than left as the commercial `aws` partition.

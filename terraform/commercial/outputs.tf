@@ -19,3 +19,8 @@ output "policy_arn" {
   value       = module.deploy_permissions.policy_arn
   description = "DEPRECATED: ARN of one functional policy (EntHomeAccessSecurity). Use policy_arns for the full set. Retained for backward compatibility."
 }
+
+output "boundary_policy_arn" {
+  value       = module.deploy_permissions.boundary_policy_arn
+  description = "ARN of the EntHomeAccessBoundary permissions-boundary policy. Not attached to the role -- see the IAM privilege-escalation guard section in the README."
+}
