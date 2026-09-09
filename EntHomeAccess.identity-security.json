@@ -55,12 +55,12 @@
             }
         },
         {
-            "Sid": "IAMBootstrapRoleCleanupAccess",
+            "Sid": "OrgBootstrapRoleCleanupAccess",
             "Effect": "Allow",
             "Action": [
                 "iam:ListAttachedRolePolicies",
-                "iam:DetachRolePolicy",
                 "iam:ListRolePolicies",
+                "iam:DetachRolePolicy",
                 "iam:DeleteRolePolicy",
                 "iam:DeleteRole"
             ],

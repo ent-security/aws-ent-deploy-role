@@ -189,6 +189,11 @@ Resources:
             Action:
               - s3:ListAllMyBuckets
             Resource: '*'
+          - Sid: S3AccountPublicAccessBlockAccess
+            Effect: Allow
+            Action:
+              - s3:GetAccountPublicAccessBlock
+            Resource: '*'
 
   EntDeployPolicySecurity:
     Type: AWS::IAM::ManagedPolicy
@@ -236,12 +241,12 @@ Resources:
                   - opensearchservice.amazonaws.com
                   - backup.amazonaws.com
                   - elasticfilesystem.amazonaws.com
-          - Sid: IAMBootstrapRoleCleanupAccess
+          - Sid: OrgBootstrapRoleCleanupAccess
             Effect: Allow
             Action:
               - iam:ListAttachedRolePolicies
-              - iam:DetachRolePolicy
               - iam:ListRolePolicies
+              - iam:DetachRolePolicy
               - iam:DeleteRolePolicy
               - iam:DeleteRole
             Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/Home*OrgBootstrap'

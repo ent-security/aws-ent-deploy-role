@@ -487,7 +487,7 @@ The full permission set exceeds AWS's **6144-character** single-managed-policy h
 | File | Managed policy | Domain | Statements |
 |------|----------------|--------|-----------|
 | `EntHomeAccess.compute-network.json` | `EntHomeAccessCompute` | Compute & Networking (EC2, EKS, ECR, ELB, Route 53) | 7 |
-| `EntHomeAccess.data-storage.json` | `EntHomeAccessData` | Data & Storage (S3, RDS, EFS, ElastiCache, Athena, Glue) | 8 |
+| `EntHomeAccess.data-storage.json` | `EntHomeAccessData` | Data & Storage (S3, RDS, EFS, ElastiCache, Athena, Glue) | 9 |
 | `EntHomeAccess.identity-security.json` | `EntHomeAccessSecurity` | Identity & Security (IAM, STS, KMS, Secrets Manager, ACM, WAFv2) | 10 |
 | `EntHomeAccess.observability-platform.json` | `EntHomeAccessPlatform` | Observability & Platform (CloudWatch, logs, cost/billing, Service Quotas, SNS, SQS, Bedrock, tagging) | 12 |
 
@@ -537,6 +537,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | Service Quotas (list) | `servicequotas:ListServiceQuotas` | unscoped (`Resource: "*"`) — the list API enumerates a service's quotas and has no resource-level support |
 | S3 | `s3:*` | buckets prefixed `e???????????????-` |
 | S3 (list buckets) | `s3:ListAllMyBuckets` | unscoped (account-level API; Terraform's `aws_canonical_user_id` data source calls it and it doesn't support resource-level permissions) |
+| S3 (account public-access block) | `s3:GetAccountPublicAccessBlock` | unscoped (account-level API with no resource-level support) — lets `ent-platform` verify the account enforces Block Public Access when the tenant sets `manageBucketPublicAccessBlock=false` |
 | Secrets Manager | `secretsmanager:*` | secrets prefixed `e???????????????-`, `mks` (macOS SSH keys), `rds!` (RDS-managed master-password secrets), or `grafana/<tenant-uuid>-<env>/*` (Grafana OAuth config in `platform-monitoring`) |
 | SNS | `sns:*` | topics prefixed `e???????????????-` and `db-event-notifications` (hardcoded default in `ent-platform`'s `db_event_subscription` module) |
 | SQS | `sqs:*` | queues prefixed `e???????????????-` |

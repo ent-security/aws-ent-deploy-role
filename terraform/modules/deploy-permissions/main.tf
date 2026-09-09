@@ -189,12 +189,17 @@ locals {
       }
     },
     {
-      Sid    = "IAMBootstrapRoleCleanupAccess"
+      # Cleanup of the CreateAccount-provisioned bootstrap role, performed by the tenant's own
+      # deploy role after StackSet provisioning completes (ent-platform
+      # AwsAccountOnboardingWorkflow.deleteBootstrapRole, ENT-1415). Wildcarded on the
+      # "Home<Env>OrgBootstrap" naming scheme (AwsAccountOnboardingProperties.resolvedOrgBootstrapRoleName)
+      # rather than the literal HomeProdOrgBootstrap, so it covers every roleEnvironment value.
+      Sid    = "OrgBootstrapRoleCleanupAccess"
       Effect = "Allow"
       Action = [
         "iam:ListAttachedRolePolicies",
-        "iam:DetachRolePolicy",
         "iam:ListRolePolicies",
+        "iam:DetachRolePolicy",
         "iam:DeleteRolePolicy",
         "iam:DeleteRole",
       ]
@@ -283,6 +288,12 @@ locals {
       Sid      = "S3ListAllMyBucketsAccess"
       Effect   = "Allow"
       Action   = ["s3:ListAllMyBuckets"]
+      Resource = "*"
+    },
+    {
+      Sid      = "S3AccountPublicAccessBlockAccess"
+      Effect   = "Allow"
+      Action   = ["s3:GetAccountPublicAccessBlock"]
       Resource = "*"
     },
     {
@@ -391,20 +402,21 @@ locals {
     Route53Access                  = "compute-network"
 
     # Data & Storage -> EntHomeAccessData (EntHomeAccess.data-storage.json)
-    S3Access                 = "data-storage"
-    S3ListAllMyBucketsAccess = "data-storage"
-    RDSAccess                = "data-storage"
-    RDSDescribeAccess        = "data-storage"
-    EFSAccess                = "data-storage"
-    ElastiCacheAccess        = "data-storage"
-    AthenaAccess             = "data-storage"
-    GlueAccess               = "data-storage"
+    S3Access                         = "data-storage"
+    S3ListAllMyBucketsAccess         = "data-storage"
+    S3AccountPublicAccessBlockAccess = "data-storage"
+    RDSAccess                        = "data-storage"
+    RDSDescribeAccess                = "data-storage"
+    EFSAccess                        = "data-storage"
+    ElastiCacheAccess                = "data-storage"
+    AthenaAccess                     = "data-storage"
+    GlueAccess                       = "data-storage"
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
     IAMAccess                     = "identity-security"
     IAMSessionContextAccess       = "identity-security"
     IAMServiceLinkedRoleAccess    = "identity-security"
-    IAMBootstrapRoleCleanupAccess = "identity-security"
+    OrgBootstrapRoleCleanupAccess = "identity-security"
     STSAssumeRoleAccess           = "identity-security"
     STSIdentityAccess             = "identity-security"
     KMSAccess                     = "identity-security"
