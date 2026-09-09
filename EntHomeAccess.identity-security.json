@@ -55,6 +55,18 @@
             }
         },
         {
+            "Sid": "IAMBootstrapRoleCleanupAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListAttachedRolePolicies",
+                "iam:DetachRolePolicy",
+                "iam:ListRolePolicies",
+                "iam:DeleteRolePolicy",
+                "iam:DeleteRole"
+            ],
+            "Resource": "arn:aws:iam::*:role/Home*OrgBootstrap"
+        },
+        {
             "Sid": "KMSAccess",
             "Effect": "Allow",
             "Action": [

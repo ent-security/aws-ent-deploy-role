@@ -189,6 +189,18 @@ locals {
       }
     },
     {
+      Sid    = "IAMBootstrapRoleCleanupAccess"
+      Effect = "Allow"
+      Action = [
+        "iam:ListAttachedRolePolicies",
+        "iam:DetachRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:DeleteRolePolicy",
+        "iam:DeleteRole",
+      ]
+      Resource = "arn:${local.partition}:iam::*:role/Home*OrgBootstrap"
+    },
+    {
       Sid    = "KMSAccess"
       Effect = "Allow"
       Action = ["kms:*"]
@@ -389,16 +401,17 @@ locals {
     GlueAccess               = "data-storage"
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
-    IAMAccess                  = "identity-security"
-    IAMSessionContextAccess    = "identity-security"
-    IAMServiceLinkedRoleAccess = "identity-security"
-    STSAssumeRoleAccess        = "identity-security"
-    STSIdentityAccess          = "identity-security"
-    KMSAccess                  = "identity-security"
-    KMSAccountLevelAccess      = "identity-security"
-    SecretsManagerAccess       = "identity-security"
-    CertificateManagerAccess   = "identity-security"
-    WAFv2Access                = "identity-security"
+    IAMAccess                     = "identity-security"
+    IAMSessionContextAccess       = "identity-security"
+    IAMServiceLinkedRoleAccess    = "identity-security"
+    IAMBootstrapRoleCleanupAccess = "identity-security"
+    STSAssumeRoleAccess           = "identity-security"
+    STSIdentityAccess             = "identity-security"
+    KMSAccess                     = "identity-security"
+    KMSAccountLevelAccess         = "identity-security"
+    SecretsManagerAccess          = "identity-security"
+    CertificateManagerAccess      = "identity-security"
+    WAFv2Access                   = "identity-security"
 
     # Observability & Platform -> EntHomeAccessPlatform (EntHomeAccess.observability-platform.json)
     CloudWatchAccess             = "observability-platform"
