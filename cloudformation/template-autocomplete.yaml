@@ -241,6 +241,15 @@ Resources:
                   - opensearchservice.amazonaws.com
                   - backup.amazonaws.com
                   - elasticfilesystem.amazonaws.com
+          - Sid: OrgBootstrapRoleCleanupAccess
+            Effect: Allow
+            Action:
+              - iam:ListAttachedRolePolicies
+              - iam:ListRolePolicies
+              - iam:DetachRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:DeleteRole
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/Home*OrgBootstrap'
           - Sid: KMSAccess
             Effect: Allow
             Action:
