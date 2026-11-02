@@ -24,6 +24,26 @@
             ]
         },
         {
+            "Sid": "IAMBoundaryEnforcement",
+            "Effect": "Deny",
+            "Action": "iam:CreateRole",
+            "Resource": "arn:aws:iam::*:role/e???????????????-*",
+            "Condition": {
+                "StringNotLike": {
+                    "iam:PermissionsBoundary": "arn:aws:iam::*:policy/EntHomeAccessBoundary"
+                }
+            }
+        },
+        {
+            "Sid": "IAMBoundaryProtection",
+            "Effect": "Deny",
+            "Action": [
+                "iam:DeleteRolePermissionsBoundary",
+                "iam:PutRolePermissionsBoundary"
+            ],
+            "Resource": "arn:aws:iam::*:role/e???????????????-*"
+        },
+        {
             "Sid": "IAMSessionContextAccess",
             "Effect": "Allow",
             "Action": [

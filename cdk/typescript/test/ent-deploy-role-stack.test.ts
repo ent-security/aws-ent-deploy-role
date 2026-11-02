@@ -12,15 +12,16 @@ describe('EntDeployRoleStack', () => {
     return Template.fromStack(stack);
   };
 
-  test('creates the four functional managed policies', () => {
+  test('creates the four functional managed policies plus the boundary policy', () => {
     const template = makeTemplate();
-    // The permission set is split across four functional managed policies, all attached to the role.
-    template.resourceCountIs('AWS::IAM::ManagedPolicy', 4);
+    // Four functional managed policies (all attached to the role) plus the boundary policy.
+    template.resourceCountIs('AWS::IAM::ManagedPolicy', 5);
     for (const name of [
       'EntHomeAccessCompute',
       'EntHomeAccessData',
       'EntHomeAccessSecurity',
       'EntHomeAccessPlatform',
+      'EntHomeAccessBoundary',
     ]) {
       template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
         ManagedPolicyName: name,
@@ -28,13 +29,19 @@ describe('EntDeployRoleStack', () => {
     }
   });
 
-  test('attaches all four managed policies to the role', () => {
+  test('attaches only the four functional managed policies to the role', () => {
     const template = makeTemplate();
-    const policies = template.findResources('AWS::IAM::ManagedPolicy');
+    const policies = template.findResources('AWS::IAM::ManagedPolicy', {
+      Properties: Match.objectLike({ ManagedPolicyName: Match.not('EntHomeAccessBoundary') }),
+    });
     const policyRefs = Object.keys(policies).map((logicalId) => ({ Ref: logicalId }));
+    expect(policyRefs).toHaveLength(4);
     template.hasResourceProperties('AWS::IAM::Role', {
       ManagedPolicyArns: Match.arrayWith(policyRefs),
     });
+    const role = template.findResources('AWS::IAM::Role');
+    const [roleProps] = Object.values(role).map((r: any) => r.Properties);
+    expect(roleProps.ManagedPolicyArns).toHaveLength(4);
   });
 
   test('creates a role with the default name HomeProdAssumeAdmin', () => {

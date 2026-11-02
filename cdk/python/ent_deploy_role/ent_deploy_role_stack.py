@@ -74,6 +74,22 @@ class EntDeployRoleStack(cdk.Stack):
                 policy_document=policy_json,
             )
 
+        # Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json).
+        # NOT attached to the deploy role itself below -- it would strip the deploy role's own
+        # iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by
+        # ARN when the deploy role creates a new role under role/e???????????????-*, capping that
+        # new role's effective permissions regardless of what policy gets attached to it. No
+        # partition rewrite needed: its Action/Resource entries carry no ARNs.
+        boundary_json = json.loads((repo_root / "EntHomeAccess.boundary.json").read_text())
+        boundary_policy = iam.CfnManagedPolicy(
+            self,
+            "EntHomeAccessBoundaryPolicy",
+            managed_policy_name=f"{_DEFAULTS['policy_name_prefix']}Boundary",
+            description="Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.",
+            path="/",
+            policy_document=boundary_json,
+        )
+
         trust_raw = (repo_root / "role.json").read_text()
         # Python str.replace replaces all occurrences by default (no count arg)
         trust_json = json.loads(trust_raw.replace("<ENT_AWS_ACCOUNT_ARN>", ent_aws_account_arn))
@@ -100,6 +116,7 @@ class EntDeployRoleStack(cdk.Stack):
         self.policy_arns = [managed_policies[suffix].ref for _, suffix in _POLICY_FILES]
         # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policy_arns.
         self.policy_arn = managed_policies[_COMPAT_POLICY_SUFFIX].ref
+        self.boundary_policy_arn = boundary_policy.ref
 
         cdk.CfnOutput(self, "RoleArn", value=self.role_arn)
         cdk.CfnOutput(self, "RoleName", value=self.role_name_out)
@@ -107,3 +124,4 @@ class EntDeployRoleStack(cdk.Stack):
             cdk.CfnOutput(self, f"PolicyArn{suffix}", value=managed_policies[suffix].ref)
         # Deprecated compat output, retained so existing references keep resolving.
         cdk.CfnOutput(self, "PolicyArn", value=self.policy_arn)
+        cdk.CfnOutput(self, "PolicyArnBoundary", value=self.boundary_policy_arn)

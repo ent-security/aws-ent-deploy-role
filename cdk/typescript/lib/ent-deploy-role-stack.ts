@@ -43,6 +43,7 @@ export class EntDeployRoleStack extends cdk.Stack {
   public readonly policyArns: string[];
   /** @deprecated The full permission set spans four policies — use policyArns. Points at EntHomeAccessSecurity. */
   public readonly policyArn: string;
+  public readonly boundaryPolicyArn: string;
 
   constructor(scope: Construct, id: string, props: EntDeployRoleStackProps = {}) {
     super(scope, id, props);
@@ -69,6 +70,21 @@ export class EntDeployRoleStack extends cdk.Stack {
       });
     });
 
+    // Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json).
+    // NOT attached to the deploy role itself below -- it would strip the deploy role's own
+    // iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN
+    // when the deploy role creates a new role under role/e???????????????-*, capping that new
+    // role's effective permissions regardless of what policy gets attached to it. No partition
+    // rewrite needed: its Action/Resource entries carry no ARNs.
+    const boundaryJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary.json'), 'utf-8'));
+    const boundaryPolicy = new iam.CfnManagedPolicy(this, 'EntHomeAccessBoundaryPolicy', {
+      managedPolicyName: `${DEFAULTS.policyNamePrefix}Boundary`,
+      description:
+        'Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.',
+      path: '/',
+      policyDocument: boundaryJson,
+    });
+
     const trustJsonRaw = fs.readFileSync(path.join(repoRoot, 'role.json'), 'utf-8');
     const trustJson = JSON.parse(trustJsonRaw.replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
 
@@ -88,6 +104,7 @@ export class EntDeployRoleStack extends cdk.Stack {
     this.policyArns = managedPolicies.map((p) => p.ref);
     // Backward-compat single ARN: EntHomeAccessSecurity. Deprecated — use policyArns.
     this.policyArn = managedPolicies[COMPAT_POLICY_INDEX].ref;
+    this.boundaryPolicyArn = boundaryPolicy.ref;
 
     new cdk.CfnOutput(this, 'RoleArn', { value: this.roleArn });
     new cdk.CfnOutput(this, 'RoleName', { value: this.roleName });
@@ -96,5 +113,6 @@ export class EntDeployRoleStack extends cdk.Stack {
     );
     // Deprecated compat output, retained so existing references keep resolving.
     new cdk.CfnOutput(this, 'PolicyArn', { value: this.policyArn });
+    new cdk.CfnOutput(this, 'PolicyArnBoundary', { value: this.boundaryPolicyArn });
   }
 }

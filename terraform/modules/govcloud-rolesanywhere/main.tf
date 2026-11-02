@@ -71,6 +71,10 @@ resource "aws_iam_role" "deploy" {
 
   assume_role_policy = data.aws_iam_policy_document.ra_trust.json
 
+  # Deliberately no permissions_boundary here. EntHomeAccessBoundary (see
+  # deploy-permissions' IAMBoundaryEnforcement) denies iam:*/sts:AssumeRole broadly -- applying
+  # it to this role would strip its own grants. It exists only to be referenced by ARN when this
+  # role creates a new role under role/e???????????????-*.
   tags = var.tags
 }
 

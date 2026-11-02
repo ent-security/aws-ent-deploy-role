@@ -51,4 +51,10 @@ run "each_functional_policy_matches_its_file" {
     condition     = jsonencode(jsondecode(output.policy_json_by_group["observability-platform"])) == jsonencode(jsondecode(file("${path.module}/../../../EntHomeAccess.observability-platform.json")))
     error_message = "Rendered Observability & Platform policy drifted from EntHomeAccess.observability-platform.json. Update the deploy-permissions module and the file in lockstep."
   }
+
+  # Permissions boundary (not a functional domain policy, but authoritative-file-backed the same way)
+  assert {
+    condition     = jsonencode(jsondecode(output.boundary_policy_json)) == jsonencode(jsondecode(file("${path.module}/../../../EntHomeAccess.boundary.json")))
+    error_message = "Rendered permissions-boundary policy drifted from EntHomeAccess.boundary.json. Update the deploy-permissions module and the file in lockstep."
+  }
 }

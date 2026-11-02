@@ -74,6 +74,7 @@ tags = {
 | `role_name` | The name of the role |
 | `policy_arns` | ARNs of the four functional permission policies attached to the role |
 | `policy_arn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`). Retained for backward compatibility — use `policy_arns` for the full set. |
+| `boundary_policy_arn` | ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to this role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 The permission set is split across four functional managed policies (see [Managed-policy split](#managed-policy-split)), so `policy_arns` is the real output; the singular `policy_arn` is kept only so pre-split consumers keep resolving.
 
@@ -129,6 +130,7 @@ onboarding.
 | `trust_anchor_arn` | ARN of the Roles Anywhere trust anchor |
 | `profile_arn` | ARN of the Roles Anywhere profile |
 | `role_arn` | ARN of the deploy role |
+| `boundary_policy_arn` | ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to the role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 ### GovCloud Requirements
 
@@ -137,7 +139,7 @@ onboarding.
 
 ## CloudFormation Usage
 
-> **Note.** Like the Terraform, CDK, and Pulumi variants, the CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) create the permission set as the four functional managed policies (`EntHomeAccessCompute`, `EntHomeAccessData`, `EntHomeAccessSecurity`, `EntHomeAccessPlatform` — see the [functional split](#managed-policy-split)) and attach all four to the role, keeping each under AWS's 6144-character single-managed-policy limit. The CFN statements are hand-maintained (no zero-diff test guards them like Terraform's) — keep them in lockstep with the four `EntHomeAccess.<domain>.json` files.
+> **Note.** Like the Terraform, CDK, and Pulumi variants, the CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) create the permission set as the four functional managed policies (`EntHomeAccessCompute`, `EntHomeAccessData`, `EntHomeAccessSecurity`, `EntHomeAccessPlatform` — see the [functional split](#managed-policy-split)) and attach all four to the role, keeping each under AWS's 6144-character single-managed-policy limit, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)). The CFN statements are hand-maintained (no zero-diff test guards them like Terraform's) — keep them in lockstep with the four `EntHomeAccess.<domain>.json` files plus `EntHomeAccess.boundary.json`.
 
 Deploy using the AWS CLI:
 
@@ -175,6 +177,7 @@ Or deploy via the AWS Console:
 | `PolicyArnSecurity` | The ARN of the Identity & Security managed policy |
 | `PolicyArnPlatform` | The ARN of the Observability & Platform managed policy |
 | `PolicyArn` | Deprecated — the Identity & Security policy ARN, kept for backward compatibility; use the per-domain outputs |
+| `PolicyArnBoundary` | The ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to the role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 ### CloudFormation (auto-callback variant)
 
@@ -194,7 +197,7 @@ The Lambda code is short enough to audit before clicking Create stack — see `c
 
 ## CDK Usage
 
-This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at synthesis time, creating one managed policy per file and attaching all four to the role.
+This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at synthesis time, creating one managed policy per file and attaching all four to the role, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)).
 
 ### CDK TypeScript
 
@@ -241,10 +244,11 @@ See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
 | `RoleName` | The name of the role |
 | `PolicyArnCompute`, `PolicyArnData`, `PolicyArnSecurity`, `PolicyArnPlatform` | ARNs of the four functional permission policies |
 | `PolicyArn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`); retained for backward compatibility |
+| `PolicyArnBoundary` | ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to the role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 ## Pulumi Usage
 
-This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at deploy time, creating one managed policy per file and attaching all four to the role.
+This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at deploy time, creating one managed policy per file and attaching all four to the role, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)).
 
 ### Pulumi TypeScript
 
@@ -302,10 +306,11 @@ See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
 | `roleName` | The name of the role |
 | `policyArns` | ARNs of the four functional permission policies attached to the role |
 | `policyArn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`); retained for backward compatibility — use `policyArns` |
+| `boundaryPolicyArn` | ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to this role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 ## AWS CLI Usage
 
-Deploy using the AWS CLI with the provided `role.json` and the four functional policy files (see [Managed-policy split](#managed-policy-split)). The permission set is split across four managed policies because the full set exceeds AWS's 6144-character single-managed-policy limit; create all four and attach each to the role.
+Deploy using the AWS CLI with the provided `role.json` and the four functional policy files (see [Managed-policy split](#managed-policy-split)). The permission set is split across four managed policies because the full set exceeds AWS's 6144-character single-managed-policy limit; create all four and attach each to the role. You must also create the `EntHomeAccessBoundary` policy from `EntHomeAccess.boundary.json` — **do not attach it to the role**; it is referenced only by ARN in the `IAMBoundaryEnforcement` Deny condition inside `EntHomeAccess.identity-security.json` (see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)). Create it before the role/policies below, since the identity-security policy's condition references its ARN.
 
 > **Deploying in AWS GovCloud?** The functional policy files ship with commercial `arn:aws:` ARNs — rewrite the partition before running the commands below. See [AWS partitions (GovCloud)](#aws-partitions-govcloud).
 
@@ -338,7 +343,15 @@ sed -i '' 's/<ENT_AWS_ACCOUNT_ARN>/YOUR_ENT_AWS_ACCOUNT_ARN/' role.json
 }
 ```
 
-2. Create the IAM role:
+2. Create the `EntHomeAccessBoundary` permissions-boundary policy. **Do not attach it to the role** — it is referenced only by ARN from a Deny condition in the Identity & Security functional policy created in step 4:
+
+```bash
+aws iam create-policy \
+  --policy-name EntHomeAccessBoundary \
+  --policy-document file://EntHomeAccess.boundary.json
+```
+
+3. Create the IAM role:
 
 ```bash
 aws iam create-role \
@@ -348,7 +361,7 @@ aws iam create-role \
   --assume-role-policy-document file://role.json
 ```
 
-3. Create the four functional IAM policies and attach each to the role. Each file becomes a managed policy named `EntHomeAccess<Domain>`:
+4. Create the four functional IAM policies and attach each to the role. Each file becomes a managed policy named `EntHomeAccess<Domain>`:
 
 ```bash
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
@@ -493,6 +506,8 @@ The full permission set exceeds AWS's **6144-character** single-managed-policy h
 
 The managed-policy names come from a name **prefix** (Terraform `var.policy_name`, default `EntHomeAccess`) suffixed per domain — `${prefix}Compute`, `${prefix}Data`, `${prefix}Security`, `${prefix}Platform`. Overriding the prefix renames all four in lockstep.
 
+A fifth managed policy, `${prefix}Boundary` (file `EntHomeAccess.boundary.json`), is created alongside the four but **not attached to the role** — it is a permissions boundary referenced only by ARN in a Deny condition on `iam:CreateRole`. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard).
+
 The split introduced no permission change: before merge, the Sid-keyed union of the four files was validated set-equal to the pre-split single policy via a throwaway reference file built from the previous `policy.json` (since removed — the four files are now the sole source of truth). The Terraform zero-diff test asserts each rendered managed policy matches its `EntHomeAccess.<domain>.json` file, and `scripts/check-policy-size.sh` (wired into CI) fails the build if any functional file approaches the 6144-character limit.
 
 ### Migrating an existing tenant
@@ -522,7 +537,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | ElastiCache | `elasticache:*` | cache-clusters + replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
 | Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????` (Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
-| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers) |
+| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers). Role creation under the glob requires the `EntHomeAccessBoundary` permissions boundary — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 | IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch, Backup, EFS (EFS `PutBackupPolicy` creates both `AWSServiceRoleForBackup` and `AWSServiceRoleForAmazonElasticFileSystem` on first use) |
 | KMS | `kms:*` | aliases prefixed `e???????????????-` or `eks/e???????????????-` (keys have UUIDs) |
@@ -545,6 +560,17 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | STS (identity) | `sts:GetCallerIdentity`, `sts:DecodeAuthorizationMessage`, `sts:GetAccessKeyInfo` | unscoped (these calls don't take resources) |
 | WAFv2 | `wafv2:*` | regional/global web-ACLs prefixed `e???????????????-` |
 | Resource Tagging API | `tag:*` | unscoped (multi-resource API) |
+
+### IAM privilege-escalation guard
+
+The IAM row above grants `iam:CreateRole`/`iam:PutRolePolicy`/`iam:AttachRolePolicy` on `role/e???????????????-*`, and the STS row grants `sts:AssumeRole` on the same glob. IAM authorizes those `iam:*` calls against the *target role resource*, not the content of whatever policy later gets attached to it — so, without a further guard, this role could create a new role matching the glob, attach an unbounded policy to it, then immediately `sts:AssumeRole` into it: a privilege escalation using only permissions this role already holds.
+
+Two Deny statements close this gap:
+
+- `IAMBoundaryEnforcement` denies `iam:CreateRole` under the glob unless the caller sets `iam:PermissionsBoundary` to the `EntHomeAccessBoundary` policy. A permissions boundary caps a role's *effective* permissions to the intersection of its identity policies and the boundary, regardless of what gets attached to it afterward — so `iam:PutRolePolicy`/`iam:AttachRolePolicy` need no additional condition once the boundary is enforced at creation time.
+- `IAMBoundaryProtection` denies `iam:PutRolePermissionsBoundary`/`iam:DeleteRolePermissionsBoundary` under the glob, so a role's boundary can't be stripped or swapped after creation.
+
+`EntHomeAccessBoundary` is a fifth managed policy, created alongside the four functional policies (see [Managed-policy split](#managed-policy-split)) but **never attached to this role itself** — every IaC variant's outputs table above marks it as such. It denies `iam:*` and `sts:AssumeRole`/`sts:AssumeRoleWithWebIdentity`/`sts:TagSession` outright, which is deliberately too restrictive for this deploy role's own needs; it exists solely to be referenced by ARN in `IAMBoundaryEnforcement`'s condition, capping whatever role this deploy role creates under the glob.
 
 ### Resource scoping
 

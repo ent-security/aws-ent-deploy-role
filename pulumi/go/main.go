@@ -12,8 +12,9 @@ import (
 )
 
 type deployed struct {
-	Policies []*iam.Policy
-	Role     *iam.Role
+	Policies       []*iam.Policy
+	Role           *iam.Role
+	BoundaryPolicy *iam.Policy
 }
 
 const (
@@ -94,6 +95,26 @@ func deploy(
 		policies = append(policies, policy)
 	}
 
+	// Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json). NOT
+	// attached to the deploy role itself below -- it would strip the deploy role's own
+	// iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN
+	// when the deploy role creates a new role under role/e???????????????-*, capping that new
+	// role's effective permissions regardless of what policy gets attached to it. No partition
+	// rewrite needed: its Action/Resource entries carry no ARNs.
+	boundaryJSON, err := readRepoFile("EntHomeAccess.boundary.json")
+	if err != nil {
+		return nil, err
+	}
+	boundaryPolicy, err := iam.NewPolicy(ctx, "EntHomeAccessBoundary", &iam.PolicyArgs{
+		Name:        pulumi.String(policyNamePrefix + "Boundary"),
+		Description: pulumi.String("Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself."),
+		Path:        pulumi.String("/"),
+		Policy:      pulumi.String(boundaryJSON),
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	trustRaw, err := readRepoFile("role.json")
 	if err != nil {
 		return nil, err
@@ -127,7 +148,7 @@ func deploy(
 		}
 	}
 
-	return &deployed{Policies: policies, Role: role}, nil
+	return &deployed{Policies: policies, Role: role, BoundaryPolicy: boundaryPolicy}, nil
 }
 
 func main() {
@@ -173,6 +194,7 @@ func main() {
 				ctx.Export("policyArn", result.Policies[i].Arn)
 			}
 		}
+		ctx.Export("boundaryPolicyArn", result.BoundaryPolicy.Arn)
 		return nil
 	})
 }

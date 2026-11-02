@@ -56,6 +56,20 @@ for _filename, _suffix in POLICY_FILES:
         policy=_policy_json,
     )
 
+# Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json). NOT
+# attached to the deploy role itself below -- it would strip the deploy role's own
+# iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN when
+# the deploy role creates a new role under role/e???????????????-*, capping that new role's
+# effective permissions regardless of what policy gets attached to it. No partition rewrite needed:
+# its Action/Resource entries carry no ARNs.
+boundary_policy = aws.iam.Policy(
+    "EntHomeAccessBoundary",
+    name=f"{POLICY_NAME_PREFIX}Boundary",
+    description="Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.",
+    path="/",
+    policy=(repo_root / "EntHomeAccess.boundary.json").read_text(),
+)
+
 role = aws.iam.Role(
     "EntDeployRole",
     name=role_name,
@@ -66,8 +80,9 @@ role = aws.iam.Role(
 )
 
 # One attachment per functional policy.
+attachments = {}
 for _filename, _suffix in POLICY_FILES:
-    aws.iam.RolePolicyAttachment(
+    attachments[_suffix] = aws.iam.RolePolicyAttachment(
         f"EntDeployRoleAttachment{_suffix}",
         role=role.name,
         policy_arn=policies[_suffix].arn,
@@ -78,3 +93,4 @@ pulumi.export("roleName", role.name)
 pulumi.export("policyArns", [policies[suffix].arn for _, suffix in POLICY_FILES])
 # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
 pulumi.export("policyArn", policies[COMPAT_POLICY_SUFFIX].arn)
+pulumi.export("boundaryPolicyArn", boundary_policy.arn)
