@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.3](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.2...v1.0.3) (2026-10-15)
+
+
+### Bug Fixes
+
+* grant deploy role ElastiCache user and user-group access for Redis IAM auth ([#33](https://github.com/ent-security/aws-ent-deploy-role/issues/33)) ([c3dfe92](https://github.com/ent-security/aws-ent-deploy-role/commit/c3dfe92b6f2f9bf463ae15e0b0581aa6f98ba7d3))
+
+## [1.0.2](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.1...v1.0.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* grant deploy role bootstrap-role cleanup IAM actions (ENT-1415) ([#28](https://github.com/ent-security/aws-ent-deploy-role/issues/28)) ([fe996d4](https://github.com/ent-security/aws-ent-deploy-role/commit/fe996d43dcda2e5232ba24c3c0907bc1c87e9d8c))
+
 ## [1.0.1](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.0...v1.0.1) (2026-08-24)
 
 
