@@ -76,12 +76,13 @@ export const role = new aws.iam.Role('EntDeployRole', {
 });
 
 // One attachment per functional policy.
-policies.forEach((policy, i) => {
-  new aws.iam.RolePolicyAttachment(`EntDeployRoleAttachment${POLICY_FILES[i][1]}`, {
-    role: role.name,
-    policyArn: policy.arn,
-  });
-});
+export const attachments = policies.map(
+  (policy, i) =>
+    new aws.iam.RolePolicyAttachment(`EntDeployRoleAttachment${POLICY_FILES[i][1]}`, {
+      role: role.name,
+      policyArn: policy.arn,
+    }),
+);
 
 export const roleArn = role.arn;
 export const policyArns = policies.map((p) => p.arn);

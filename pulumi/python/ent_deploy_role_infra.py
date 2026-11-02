@@ -80,8 +80,9 @@ role = aws.iam.Role(
 )
 
 # One attachment per functional policy.
+attachments = {}
 for _filename, _suffix in POLICY_FILES:
-    aws.iam.RolePolicyAttachment(
+    attachments[_suffix] = aws.iam.RolePolicyAttachment(
         f"EntDeployRoleAttachment{_suffix}",
         role=role.name,
         policy_arn=policies[_suffix].arn,

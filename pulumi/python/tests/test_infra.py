@@ -5,8 +5,14 @@ import unittest
 import pulumi
 
 
+# Inputs of every resource registered with the mocks, by type, so tests can assert what was
+# actually wired up (e.g. every RolePolicyAttachment) rather than only what the module exposes.
+registered = {}
+
+
 class EntDeployRoleMocks(pulumi.runtime.Mocks):
     def new_resource(self, args: pulumi.runtime.MockResourceArgs):
+        registered.setdefault(args.typ, []).append(dict(args.inputs))
         outputs = dict(args.inputs)
         outputs["arn"] = f"arn:aws:iam::123456789012:{args.typ}/{args.name}"
         return [f"{args.name}_id", outputs]
@@ -72,6 +78,26 @@ class TestEntDeployRole(unittest.TestCase):
             self.assertEqual(name, "EntHomeAccessBoundary")
 
         return infra.boundary_policy.name.apply(check)
+
+    @pulumi.runtime.test
+    def test_boundary_not_attached_to_deploy_role(self):
+        # Setting the boundary on the deploy role (or attaching it as a managed policy) would cap
+        # the deploy role's own iam:*/sts:AssumeRole access. Assert the role carries no boundary and
+        # its registered attachments are exactly the four functional policies.
+        def check(args):
+            boundary_arn, permissions_boundary, *functional_arns = args
+            self.assertIsNone(permissions_boundary)
+            attached = [a["policyArn"] for a in registered["aws:iam/rolePolicyAttachment:RolePolicyAttachment"]]
+            self.assertNotIn(boundary_arn, attached)
+            self.assertEqual(sorted(attached), sorted(functional_arns))
+
+        return pulumi.Output.all(
+            infra.boundary_policy.arn,
+            infra.role.permissions_boundary,
+            *[p.arn for p in infra.policies.values()],
+            # Wait for every attachment to register before reading `registered`.
+            *[a.policy_arn for a in infra.attachments.values()],
+        ).apply(lambda args: check(args[: 2 + len(infra.policies)]))
 
     @pulumi.runtime.test
     def test_policy_arns_rewritten_to_partition(self):
