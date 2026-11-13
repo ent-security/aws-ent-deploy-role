@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.3...v1.0.4) (2026-11-13)
+
+
+### Bug Fixes
+
+* grant deploy role Glue user-defined-function access so decommission can delete the CUR database ([#35](https://github.com/ent-security/aws-ent-deploy-role/issues/35)) ([1a98630](https://github.com/ent-security/aws-ent-deploy-role/commit/1a98630ecda316fe824bf029e57e127913f3b365))
+
 ## [1.0.3](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.2...v1.0.3) (2026-10-15)
 
 
