@@ -521,7 +521,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | EKS (addon versions) | `eks:DescribeAddonVersions` | unscoped (account-level API; `aws_eks_addon_version` data source reads it for metrics-server/adot/ebs-csi/cert-manager/pod-identity-agent) |
 | ElastiCache | `elasticache:*` | cache-clusters + replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
-| Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????` (Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
+| Glue | `glue:*` | catalog + databases/tables/user-defined functions prefixed `e???????????????` (`DeleteDatabase` also authorizes against the database's tables and functions; Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
 | IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers) |
 | IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch, Backup, EFS (EFS `PutBackupPolicy` creates both `AWSServiceRoleForBackup` and `AWSServiceRoleForAmazonElasticFileSystem` on first use) |
