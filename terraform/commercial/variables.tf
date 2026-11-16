@@ -33,3 +33,21 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "permissions_boundary_arn" {
+  description = "Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role creates under role/e???????????????-* must carry (your own policy, or the boundary_policy_arn output). Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on your tenant, or deploys are denied. See README: IAM privilege-escalation guard."
+  type        = string
+  default     = ""
+}
+
+variable "owner_tag_key" {
+  description = "Opt-in ownership-tag guard. Tag key (e.g. \"Owner Role\") every role the deploy role creates under role/e???????????????-* must carry with value owner_tag_value. Empty (default) leaves the guard off. Set it only after Ent has set the same tag on your tenant, or deploys are denied."
+  type        = string
+  default     = ""
+}
+
+variable "owner_tag_value" {
+  description = "Value the owner_tag_key tag must have. Required when owner_tag_key is set."
+  type        = string
+  default     = ""
+}

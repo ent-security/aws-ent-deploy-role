@@ -108,3 +108,30 @@ class TestEntDeployRole(unittest.TestCase):
             self.assertNotIn("arn:aws:s3:::", policy_str)
 
         return infra.policies["Data"].policy.apply(check)
+
+    def test_guards_off_by_default(self):
+        self.assertEqual(infra.guards, {})
+        self.assertEqual(infra.guard_policies("aws", "", "", ""), {})
+
+    def test_guard_policies_render_fragments(self):
+        import json
+
+        rendered = infra.guard_policies(
+            "aws-us-gov",
+            "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
+            "Owner Role",
+            "ent",
+        )
+        self.assertEqual(sorted(rendered), ["BoundaryGuard", "OwnerTagGuard"])
+        boundary = json.loads(rendered["BoundaryGuard"])
+        enforcement = boundary["Statement"][0]
+        self.assertEqual(enforcement["Resource"], "arn:aws-us-gov:iam::*:role/e???????????????-*")
+        self.assertEqual(
+            enforcement["Condition"]["StringNotEquals"]["iam:PermissionsBoundary"],
+            "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
+        )
+        owner = json.loads(rendered["OwnerTagGuard"])
+        self.assertEqual(
+            owner["Statement"][0]["Condition"]["StringNotEquals"], {"aws:RequestTag/Owner Role": "ent"}
+        )
+        self.assertNotIn("<", rendered["BoundaryGuard"] + rendered["OwnerTagGuard"])

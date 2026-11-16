@@ -17,6 +17,9 @@ EntDeployRoleStack(
     role_path=app.node.try_get_context("role_path"),
     role_description=app.node.try_get_context("role_description"),
     ent_tags=tags_ctx,
+    permissions_boundary_arn=app.node.try_get_context("permissions_boundary_arn"),
+    owner_tag_key=app.node.try_get_context("owner_tag_key"),
+    owner_tag_value=app.node.try_get_context("owner_tag_value"),
 )
 
 app.synth()

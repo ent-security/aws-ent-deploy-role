@@ -143,4 +143,26 @@ describe('EntDeployRole (Pulumi TS)', () => {
       }
     });
   });
+
+  it('creates no guard policies by default', () => {
+    assert.strictEqual(infra.guards.length, 0);
+    assert.deepStrictEqual(infra.guardPolicies('aws', '', '', ''), []);
+  });
+
+  it('renders the guard fragments with the partition and inputs substituted', () => {
+    const rendered = Object.fromEntries(
+      infra.guardPolicies('aws-us-gov', 'arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary', 'Owner Role', 'ent'),
+    );
+    assert.deepStrictEqual(Object.keys(rendered).sort(), ['BoundaryGuard', 'OwnerTagGuard']);
+    const enforcement = JSON.parse(rendered.BoundaryGuard).Statement[0];
+    assert.strictEqual(enforcement.Resource, 'arn:aws-us-gov:iam::*:role/e???????????????-*');
+    assert.strictEqual(
+      enforcement.Condition.StringNotEquals['iam:PermissionsBoundary'],
+      'arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary',
+    );
+    assert.deepStrictEqual(JSON.parse(rendered.OwnerTagGuard).Statement[0].Condition.StringNotEquals, {
+      'aws:RequestTag/Owner Role': 'ent',
+    });
+    assert.ok(!(rendered.BoundaryGuard + rendered.OwnerTagGuard).includes('<'));
+  });
 });

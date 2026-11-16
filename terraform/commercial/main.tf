@@ -15,6 +15,10 @@ module "deploy_permissions" {
 
   tags = var.tags
   # Commercial gets the full policy set: no partition exclusions, ARNs render arn:aws:*.
+
+  permissions_boundary_arn = var.permissions_boundary_arn
+  owner_tag_key            = var.owner_tag_key
+  owner_tag_value          = var.owner_tag_value
 }
 
 module "commercial_trust" {

@@ -65,8 +65,45 @@ Parameters:
       if you need more than one deploy-role stack in the same AWS account, since
       IAM managed-policy names are account-global.
 
+  PermissionsBoundaryArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^(arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+)?$'
+    ConstraintDescription: Must be empty or an IAM policy ARN (arn:<partition>:iam::<account>:policy/<name>).
+    Description: >
+      Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role
+      creates under role/e???????????????-* must carry (your own policy, or the PolicyArnBoundary
+      output). Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on
+      your tenant, or deploys are denied.
+
+  OwnerTagKey:
+    Type: String
+    Default: ''
+    AllowedPattern: '^(?![aA][wW][sS]:)[\p{L}\p{Z}\p{N}_.:/=+@-]{0,128}$'
+    ConstraintDescription: Must be a valid IAM tag key that does not start with aws:.
+    Description: >
+      Opt-in ownership-tag guard. Tag key (e.g. "Owner Role") every role the deploy role creates
+      under role/e???????????????-* must carry with value OwnerTagValue. Empty (default) leaves the
+      guard off. Set it only after Ent has set the same tag on your tenant, or deploys are denied.
+
+  OwnerTagValue:
+    Type: String
+    Default: ''
+    AllowedPattern: '^[\p{L}\p{Z}\p{N}_.:/=+@-]{0,256}$'
+    ConstraintDescription: Must be a valid IAM tag value.
+    Description: Value the OwnerTagKey tag must have. Required when OwnerTagKey is set.
+
+Rules:
+  OwnerTagValueRequired:
+    RuleCondition: !Not [!Equals [!Ref OwnerTagKey, '']]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref OwnerTagValue, '']]
+        AssertDescription: OwnerTagValue is required when OwnerTagKey is set.
+
 Conditions:
   HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
+  HasBoundaryGuard: !Not [!Equals [!Ref PermissionsBoundaryArn, '']]
+  HasOwnerTagGuard: !Not [!Equals [!Ref OwnerTagKey, '']]
 
 Resources:
   EntDeployPolicyCompute:
@@ -223,32 +260,6 @@ Resources:
               - !Sub 'arn:${AWS::Partition}:iam::*:instance-profile/e???????????????-*'
               - !Sub 'arn:${AWS::Partition}:iam::*:policy/AmazonEKS_*'
               - !Sub 'arn:${AWS::Partition}:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/*'
-          # Closes a privilege-escalation gap: IAMAccess above grants iam:CreateRole/PutRolePolicy/
-          # AttachRolePolicy on the same role/e???????????????-* glob that STSAssumeRoleAccess grants
-          # sts:AssumeRole on. IAM authorizes those actions against the ROLE resource, not the policy
-          # document being attached, so without this a deploy role could create a role under the
-          # glob, attach an unbounded policy to it, then self-assume it via the already-granted
-          # sts:AssumeRole for full privilege escalation. Deny CreateRole unless the caller supplies
-          # the EntHomeAccessBoundary permissions boundary; PutRolePolicy/AttachRolePolicy need no
-          # matching constraint since a permissions boundary caps effective permissions regardless
-          # of what's attached later, as long as it can't be removed (see IAMBoundaryProtection).
-          - Sid: IAMBoundaryEnforcement
-            Effect: Deny
-            Action:
-              - iam:CreateRole
-            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
-            Condition:
-              StringNotLike:
-                'iam:PermissionsBoundary': !Sub 'arn:${AWS::Partition}:iam::*:policy/${PolicyNamePrefix}Boundary'
-          # Without this, the deploy role could satisfy IAMBoundaryEnforcement at CreateRole time
-          # and then immediately strip the boundary via PutRolePermissionsBoundary/
-          # DeleteRolePermissionsBoundary. Explicit Deny always wins over the iam:* Allow above.
-          - Sid: IAMBoundaryProtection
-            Effect: Deny
-            Action:
-              - iam:DeleteRolePermissionsBoundary
-              - iam:PutRolePermissionsBoundary
-            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
           - Sid: IAMSessionContextAccess
             Effect: Allow
             Action:
@@ -412,12 +423,11 @@ Resources:
               - servicequotas:ListServiceQuotas
             Resource: '*'
 
-  # Permissions boundary for IAMBoundaryEnforcement (in EntDeployPolicySecurity). NOT attached to
-  # EntDeployRole itself via ManagedPolicyArns below -- it would strip EntDeployRole's own
-  # iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN
-  # when EntDeployRole creates a new role under role/e???????????????-*, capping that new role's
-  # effective permissions regardless of what policy gets attached to it. Named outside the
-  # e???????????????-* glob so IAMAccess (scoped to that glob) can't modify or delete it.
+  # Ent's default permissions boundary: an ARN a customer without its own boundary can pass as
+  # PermissionsBoundaryArn to switch on the boundary guard. NOT attached to EntDeployRole itself via
+  # ManagedPolicyArns below -- it would strip EntDeployRole's own iam:*/sts:AssumeRole grants on the
+  # glob, breaking it. Named outside the e???????????????-* glob so IAMAccess (scoped to that glob)
+  # can't modify or delete it.
   EntDeployPolicyBoundary:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -475,6 +485,91 @@ Resources:
               - sts:TagSession
             Resource: '*'
 
+  # Opt-in privilege-escalation guards (PLA-6063). IAMAccess grants iam:* on role/e???????????????-*
+  # and STSAssumeRoleAccess grants sts:AssumeRole on the same glob, so with neither guard on the
+  # deploy role can create a role under the glob, give it "*:*" inline, and assume it. Both are off
+  # by default. Every role ent-platform creates is named e<hash15>-..., so turn a guard on only once
+  # Ent Home sends the same boundary ARN / tag for the tenant. Statements mirror
+  # EntHomeAccess.boundary-guard.json and EntHomeAccess.owner-tag-guard.json; keep them in lockstep.
+  # Both policies are named outside the glob, and EntDeployRole has no IAM permission on itself, so
+  # it can neither edit nor detach them.
+  EntDeployPolicyBoundaryGuard:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasBoundaryGuard
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}BoundaryGuard'
+      Description: Requires the customer's permissions boundary on every role the Ent deploy role creates or grants permissions to under role/e???????????????-*, and keeps it from being removed or edited.
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # CreateRole: a new role must carry the boundary. PutRolePermissionsBoundary: the boundary
+          # can only ever be set TO this ARN. PutRolePolicy/AttachRolePolicy: no permissions can be
+          # added to a role that lacks it, which covers roles created before the guard was on.
+          - Sid: IAMBoundaryEnforcement
+            Effect: Deny
+            Action:
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:PutRolePermissionsBoundary
+              - iam:PutRolePolicy
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
+            Condition:
+              StringNotEquals:
+                'iam:PermissionsBoundary': !Ref PermissionsBoundaryArn
+          - Sid: IAMBoundaryRemovalProtection
+            Effect: Deny
+            Action: iam:DeleteRolePermissionsBoundary
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
+          - Sid: IAMBoundaryPolicyProtection
+            Effect: Deny
+            Action:
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicy
+              - iam:DeletePolicyVersion
+              - iam:SetDefaultPolicyVersion
+            Resource: !Ref PermissionsBoundaryArn
+
+  # The condition keys embed the tag key (aws:RequestTag/<key>), and CloudFormation can't put an
+  # intrinsic function in a map key, so this document is one substituted JSON string.
+  EntDeployPolicyOwnerTagGuard:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasOwnerTagGuard
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}OwnerTagGuard'
+      Description: Requires the customer's ownership tag on every role the Ent deploy role creates under role/e???????????????-*, and keeps it from being changed or removed.
+      Path: /
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "IAMOwnerTagEnforcement",
+              "Effect": "Deny",
+              "Action": "iam:CreateRole",
+              "Resource": "arn:${AWS::Partition}:iam::*:role/e???????????????-*",
+              "Condition": {"StringNotEquals": {"aws:RequestTag/${OwnerTagKey}": "${OwnerTagValue}"}}
+            },
+            {
+              "Sid": "IAMOwnerTagValueProtection",
+              "Effect": "Deny",
+              "Action": "iam:TagRole",
+              "Resource": "arn:${AWS::Partition}:iam::*:role/e???????????????-*",
+              "Condition": {
+                "ForAnyValue:StringEqualsIgnoreCase": {"aws:TagKeys": "${OwnerTagKey}"},
+                "StringNotEquals": {"aws:RequestTag/${OwnerTagKey}": "${OwnerTagValue}"}
+              }
+            },
+            {
+              "Sid": "IAMOwnerTagRemovalProtection",
+              "Effect": "Deny",
+              "Action": "iam:UntagRole",
+              "Resource": "arn:${AWS::Partition}:iam::*:role/e???????????????-*",
+              "Condition": {"ForAnyValue:StringEqualsIgnoreCase": {"aws:TagKeys": "${OwnerTagKey}"}}
+            }
+          ]
+        }
+
   EntDeployRole:
     Type: AWS::IAM::Role
     Properties:
@@ -515,6 +610,8 @@ Resources:
         - !Ref EntDeployPolicyData
         - !Ref EntDeployPolicySecurity
         - !Ref EntDeployPolicyPlatform
+        - !If [HasBoundaryGuard, !Ref EntDeployPolicyBoundaryGuard, !Ref AWS::NoValue]
+        - !If [HasOwnerTagGuard, !Ref EntDeployPolicyOwnerTagGuard, !Ref AWS::NoValue]
 
   CallbackLambdaRole:
     Type: AWS::IAM::Role

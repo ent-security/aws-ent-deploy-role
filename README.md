@@ -65,6 +65,9 @@ tags = {
 | `role_path` | Path of IAM role | `/` | No |
 | `role_description` | IAM Role description | (provided by module) | No |
 | `tags` | A map of tags to add to IAM role resources | `{}` | No |
+| `permissions_boundary_arn` | Opt-in. Permissions boundary every role this role creates under `role/e???????????????-*` must carry. Empty leaves the guard off. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | `""` | No |
+| `owner_tag_key` | Opt-in. Tag key (e.g. `Owner Role`) every role this role creates under the glob must carry. Empty leaves the guard off. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | `""` | No |
+| `owner_tag_value` | Value the `owner_tag_key` tag must have. | `""` | When `owner_tag_key` is set |
 
 ### Terraform Outputs
 
@@ -72,9 +75,9 @@ tags = {
 |--------|-------------|
 | `role_arn` | The ARN of the role |
 | `role_name` | The name of the role |
-| `policy_arns` | ARNs of the four functional permission policies attached to the role |
+| `policy_arns` | ARNs of the managed policies attached to the role: the four functional policies, then the `EntHomeAccessBoundaryGuard` / `EntHomeAccessOwnerTagGuard` policies when their inputs are set |
 | `policy_arn` | **Deprecated.** ARN of one functional policy (`EntHomeAccessSecurity`). Retained for backward compatibility — use `policy_arns` for the full set. |
-| `boundary_policy_arn` | ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to this role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
+| `boundary_policy_arn` | ARN of `EntHomeAccessBoundary`, Ent's default permissions boundary. **Not attached to this role**; pass it as `permissions_boundary_arn` to enforce it. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 The permission set is split across four functional managed policies (see [Managed-policy split](#managed-policy-split)), so `policy_arns` is the real output; the singular `policy_arn` is kept only so pre-split consumers keep resolving.
 
@@ -122,6 +125,9 @@ onboarding.
 | `role_path` | IAM role path | `/` | No |
 | `role_description` | IAM role description | (provided by module) | No |
 | `tags` | A map of tags to add to created resources | `{}` | No |
+| `permissions_boundary_arn` | Opt-in. Permissions boundary every role this role creates under `role/e???????????????-*` must carry. Empty leaves the guard off. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | `""` | No |
+| `owner_tag_key` | Opt-in. Tag key (e.g. `Owner Role`) every role this role creates under the glob must carry. Empty leaves the guard off. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | `""` | No |
+| `owner_tag_value` | Value the `owner_tag_key` tag must have. | `""` | When `owner_tag_key` is set |
 
 ### GovCloud Outputs
 
@@ -130,7 +136,7 @@ onboarding.
 | `trust_anchor_arn` | ARN of the Roles Anywhere trust anchor |
 | `profile_arn` | ARN of the Roles Anywhere profile |
 | `role_arn` | ARN of the deploy role |
-| `boundary_policy_arn` | ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to the role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
+| `boundary_policy_arn` | ARN of `EntHomeAccessBoundary`, Ent's default permissions boundary. **Not attached to the role**; pass it as `permissions_boundary_arn` to enforce it. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 ### GovCloud Requirements
 
@@ -139,7 +145,7 @@ onboarding.
 
 ## CloudFormation Usage
 
-> **Note.** Like the Terraform, CDK, and Pulumi variants, the CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) create the permission set as the four functional managed policies (`EntHomeAccessCompute`, `EntHomeAccessData`, `EntHomeAccessSecurity`, `EntHomeAccessPlatform` — see the [functional split](#managed-policy-split)) and attach all four to the role, keeping each under AWS's 6144-character single-managed-policy limit, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)). The CFN statements are hand-maintained (no zero-diff test guards them like Terraform's) — keep them in lockstep with the four `EntHomeAccess.<domain>.json` files plus `EntHomeAccess.boundary.json`.
+> **Note.** Like the Terraform, CDK, and Pulumi variants, the CloudFormation templates (`template.yaml`, `template-autocomplete.yaml`) create the permission set as the four functional managed policies (`EntHomeAccessCompute`, `EntHomeAccessData`, `EntHomeAccessSecurity`, `EntHomeAccessPlatform` — see the [functional split](#managed-policy-split)) and attach all four to the role, keeping each under AWS's 6144-character single-managed-policy limit, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached) and, when their parameters are set, the opt-in guard policies (see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)). The CFN statements are hand-maintained (no zero-diff test guards them like Terraform's) — keep them in lockstep with the four `EntHomeAccess.<domain>.json` files, `EntHomeAccess.boundary.json`, and the two `EntHomeAccess.*-guard.json` fragments.
 
 Deploy using the AWS CLI:
 
@@ -165,6 +171,9 @@ Or deploy via the AWS Console:
 | `RoleName` | IAM role name | `HomeProdAssumeAdmin` | No |
 | `RolePath` | Path of IAM role | `/` | No |
 | `RoleDescription` | IAM Role description | (provided by template) | No |
+| `PermissionsBoundaryArn` | Opt-in. Permissions boundary every role this role creates under `role/e???????????????-*` must carry. Empty leaves the guard off. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | `""` | No |
+| `OwnerTagKey` | Opt-in. Tag key (e.g. `Owner Role`) every role this role creates under the glob must carry. Empty leaves the guard off. | `""` | No |
+| `OwnerTagValue` | Value the `OwnerTagKey` tag must have. | `""` | When `OwnerTagKey` is set |
 
 ### CloudFormation Outputs
 
@@ -177,7 +186,7 @@ Or deploy via the AWS Console:
 | `PolicyArnSecurity` | The ARN of the Identity & Security managed policy |
 | `PolicyArnPlatform` | The ARN of the Observability & Platform managed policy |
 | `PolicyArn` | Deprecated — the Identity & Security policy ARN, kept for backward compatibility; use the per-domain outputs |
-| `PolicyArnBoundary` | The ARN of the `EntHomeAccessBoundary` permissions-boundary policy. **Not attached to the role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
+| `PolicyArnBoundary` | The ARN of `EntHomeAccessBoundary`, Ent's default permissions boundary (pass it as `PermissionsBoundaryArn` to enforce it). **Not attached to the role** — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 
 ### CloudFormation (auto-callback variant)
 
@@ -197,7 +206,7 @@ The Lambda code is short enough to audit before clicking Create stack — see `c
 
 ## CDK Usage
 
-This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at synthesis time, creating one managed policy per file and attaching all four to the role, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)).
+This repository ships standalone CDK v2 apps in TypeScript and Python. Both read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at synthesis time, creating one managed policy per file and attaching all four to the role, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached) and the opt-in guard policies when configured (see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)).
 
 ### CDK TypeScript
 
@@ -235,6 +244,8 @@ See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
 | `role_name` | IAM role name | `HomeProdAssumeAdmin` |
 | `role_path` | IAM role path | `/` |
 | `role_description` | IAM role description | (matches Terraform default) |
+| `permissions_boundary_arn` | Opt-in boundary guard. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | (off) |
+| `owner_tag_key` / `owner_tag_value` | Opt-in ownership-tag guard. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | (off) |
 
 ### CDK Outputs
 
@@ -248,7 +259,7 @@ See [`cdk/python/README.md`](./cdk/python/README.md) for full usage.
 
 ## Pulumi Usage
 
-This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at deploy time, creating one managed policy per file and attaching all four to the role, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)).
+This repository ships standalone Pulumi programs in TypeScript, Python, and Go. All three read the four authoritative functional policy files (see [Managed-policy split](#managed-policy-split)) and `role.json` at deploy time, creating one managed policy per file and attaching all four to the role, plus the `EntHomeAccessBoundary` permissions-boundary policy (not attached) and the opt-in guard policies when configured (see [IAM privilege-escalation guard](#iam-privilege-escalation-guard)).
 
 ### Pulumi TypeScript
 
@@ -297,6 +308,8 @@ See [`pulumi/go/README.md`](./pulumi/go/README.md) for full usage.
 | `rolePath` | IAM role path | `/` |
 | `roleDescription` | IAM role description | (matches Terraform default) |
 | `tags` | Map of tags (set with `--path`) | `{}` |
+| `permissionsBoundaryArn` | Opt-in boundary guard. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | (off) |
+| `ownerTagKey` / `ownerTagValue` | Opt-in ownership-tag guard. See [IAM privilege-escalation guard](#iam-privilege-escalation-guard). | (off) |
 
 ### Pulumi Outputs
 
@@ -537,7 +550,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | ElastiCache | `elasticache:*` | cache-clusters + replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
 | Glue | `glue:*` | catalog + databases/tables/user-defined functions prefixed `e???????????????` (`DeleteDatabase` also authorizes against the database's tables and functions; Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
-| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers). Role creation under the glob requires the `EntHomeAccessBoundary` permissions boundary — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
+| IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers). With the opt-in guards on, roles under the glob must carry your permissions boundary and ownership tag — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 | IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch, Backup, EFS (EFS `PutBackupPolicy` creates both `AWSServiceRoleForBackup` and `AWSServiceRoleForAmazonElasticFileSystem` on first use) |
 | KMS | `kms:*` | aliases prefixed `e???????????????-` or `eks/e???????????????-` (keys have UUIDs) |
@@ -563,14 +576,24 @@ This role grants scoped access to the AWS services below. Each statement is cons
 
 ### IAM privilege-escalation guard
 
-The IAM row above grants `iam:CreateRole`/`iam:PutRolePolicy`/`iam:AttachRolePolicy` on `role/e???????????????-*`, and the STS row grants `sts:AssumeRole` on the same glob. IAM authorizes those `iam:*` calls against the *target role resource*, not the content of whatever policy later gets attached to it — so, without a further guard, this role could create a new role matching the glob, attach an unbounded policy to it, then immediately `sts:AssumeRole` into it: a privilege escalation using only permissions this role already holds.
+The IAM row above grants `iam:CreateRole`/`iam:PutRolePolicy`/`iam:AttachRolePolicy` on `role/e???????????????-*`, and the STS row grants `sts:AssumeRole` on the same glob. IAM authorizes those calls against the target role, not the policy being attached. With no further guard, this role can create a role under the glob, give it `"Action": "*"` inline, and assume it: a privilege escalation using only permissions it already holds.
 
-Two Deny statements close this gap:
+Two opt-in guards close this gap. Each is its own managed policy, created and attached to this role only when its input is set. Both are named outside the glob, and this role has no IAM permission on itself, so it can neither edit nor detach them.
 
-- `IAMBoundaryEnforcement` denies `iam:CreateRole` under the glob unless the caller sets `iam:PermissionsBoundary` to the `EntHomeAccessBoundary` policy. A permissions boundary caps a role's *effective* permissions to the intersection of its identity policies and the boundary, regardless of what gets attached to it afterward — so `iam:PutRolePolicy`/`iam:AttachRolePolicy` need no additional condition once the boundary is enforced at creation time.
-- `IAMBoundaryProtection` denies `iam:PutRolePermissionsBoundary`/`iam:DeleteRolePermissionsBoundary` under the glob, so a role's boundary can't be stripped or swapped after creation.
+**Boundary guard** (`EntHomeAccessBoundaryGuard`; input `permissions_boundary_arn` / `PermissionsBoundaryArn` / `permissionsBoundaryArn`). Statements: [`EntHomeAccess.boundary-guard.json`](./EntHomeAccess.boundary-guard.json).
 
-`EntHomeAccessBoundary` is a fifth managed policy, created alongside the four functional policies (see [Managed-policy split](#managed-policy-split)) but **never attached to this role itself** — every IaC variant's outputs table above marks it as such. It denies `iam:*` and `sts:AssumeRole`/`sts:AssumeRoleWithWebIdentity`/`sts:TagSession` outright, which is deliberately too restrictive for this deploy role's own needs; it exists solely to be referenced by ARN in `IAMBoundaryEnforcement`'s condition, capping whatever role this deploy role creates under the glob.
+- `IAMBoundaryEnforcement` denies `iam:CreateRole`, `iam:PutRolePolicy` and `iam:AttachRolePolicy` on any role under the glob that doesn't carry your boundary, and denies `iam:PutRolePermissionsBoundary` to any other boundary. A boundary caps a role's effective permissions whatever is attached to it. Covering `PutRolePolicy`/`AttachRolePolicy` also blocks escalation through roles created before the guard was on, and allowing `PutRolePermissionsBoundary` to your ARN lets those roles be moved onto it.
+- `IAMBoundaryRemovalProtection` denies `iam:DeleteRolePermissionsBoundary` under the glob.
+- `IAMBoundaryPolicyProtection` denies new versions of, or deleting, the boundary policy itself.
+
+Use your own boundary policy, or Ent's `EntHomeAccessBoundary` (every variant creates it and outputs its ARN, never attaching it to this role). Keep your own boundary outside the `e???????????????-*` name glob so this role can't edit it.
+
+**Ownership-tag guard** (`EntHomeAccessOwnerTagGuard`; inputs `owner_tag_key` + `owner_tag_value`, or `OwnerTagKey` + `OwnerTagValue`, or `ownerTagKey` + `ownerTagValue`). Statements: [`EntHomeAccess.owner-tag-guard.json`](./EntHomeAccess.owner-tag-guard.json).
+
+- `IAMOwnerTagEnforcement` denies `iam:CreateRole` under the glob unless the request carries the tag with your value. An untagged request is denied too.
+- `IAMOwnerTagValueProtection` and `IAMOwnerTagRemovalProtection` deny changing that tag to another value or removing it. Adding it with your value to an existing role stays allowed.
+
+**Coordinate with Ent before turning a guard on.** Every role Ent creates in your account is named `e<hash>-…` and falls under the glob. Ent sets the same boundary ARN and tag on your tenant first, so its deployments send them. If a guard is on before that, deployments that create or change a role are denied.
 
 ### Resource scoping
 

@@ -79,4 +79,30 @@ describe('EntDeployRoleStack', () => {
     expect(json).toContain('AWS::Partition');
     expect(json).not.toContain('arn:aws:athena');
   });
+
+  test('attaches the opt-in guards only when enabled', () => {
+    const app = new cdk.App();
+    const stack = new EntDeployRoleStack(app, 'GuardStack', {
+      entAwsAccountArn: 'arn:aws:iam::123456789012:root',
+      permissionsBoundaryArn: 'arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary',
+      ownerTagKey: 'Owner Role',
+      ownerTagValue: 'ent',
+    });
+    const template = Template.fromStack(stack);
+    // Four functional + Ent's default boundary + two guards; only the boundary stays unattached.
+    template.resourceCountIs('AWS::IAM::ManagedPolicy', 7);
+    const [roleProps] = Object.values(template.findResources('AWS::IAM::Role')).map((r: any) => r.Properties);
+    expect(roleProps.ManagedPolicyArns).toHaveLength(6);
+    const guardDocs = Object.values(template.findResources('AWS::IAM::ManagedPolicy'))
+      .filter((p: any) => p.Properties.ManagedPolicyName.endsWith('Guard'))
+      .map((p: any) => JSON.stringify(p.Properties.PolicyDocument))
+      .join('');
+    expect(guardDocs).toContain('arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary');
+    expect(guardDocs).toContain('aws:RequestTag/Owner Role');
+    expect(guardDocs).not.toContain('<');
+  });
+
+  test('requires ownerTagValue when ownerTagKey is set', () => {
+    expect(() => new EntDeployRoleStack(new cdk.App(), 'BadStack', { ownerTagKey: 'Owner Role' })).toThrow();
+  });
 });

@@ -1,0 +1,38 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "IAMBoundaryEnforcement",
+            "Effect": "Deny",
+            "Action": [
+                "iam:AttachRolePolicy",
+                "iam:CreateRole",
+                "iam:PutRolePermissionsBoundary",
+                "iam:PutRolePolicy"
+            ],
+            "Resource": "arn:aws:iam::*:role/e???????????????-*",
+            "Condition": {
+                "StringNotEquals": {
+                    "iam:PermissionsBoundary": "<PERMISSIONS_BOUNDARY_ARN>"
+                }
+            }
+        },
+        {
+            "Sid": "IAMBoundaryRemovalProtection",
+            "Effect": "Deny",
+            "Action": "iam:DeleteRolePermissionsBoundary",
+            "Resource": "arn:aws:iam::*:role/e???????????????-*"
+        },
+        {
+            "Sid": "IAMBoundaryPolicyProtection",
+            "Effect": "Deny",
+            "Action": [
+                "iam:CreatePolicyVersion",
+                "iam:DeletePolicy",
+                "iam:DeletePolicyVersion",
+                "iam:SetDefaultPolicyVersion"
+            ],
+            "Resource": "<PERMISSIONS_BOUNDARY_ARN>"
+        }
+    ]
+}

@@ -13,6 +13,12 @@ const roleDescription =
   config.get('roleDescription') ??
   'Role that allows Ent Home to assume AdministratorAccess role';
 const tags = config.getObject<Record<string, string>>('tags') ?? {};
+const permissionsBoundaryArn = config.get('permissionsBoundaryArn') ?? '';
+const ownerTagKey = config.get('ownerTagKey') ?? '';
+const ownerTagValue = config.get('ownerTagValue') ?? '';
+if (ownerTagKey && !ownerTagValue) {
+  throw new Error('ownerTagValue is required when ownerTagKey is set');
+}
 
 const policyNamePrefix = 'EntHomeAccess';
 const policyDescription =
@@ -53,12 +59,10 @@ export const policies = POLICY_FILES.map(([filename, suffix]) => {
   });
 });
 
-// Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json). NOT
+// Ent's default permissions boundary: pass its ARN as permissionsBoundaryArn to enforce it. NOT
 // attached to the deploy role itself below -- it would strip the deploy role's own
-// iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN when
-// the deploy role creates a new role under role/e???????????????-*, capping that new role's
-// effective permissions regardless of what policy gets attached to it. No partition rewrite needed:
-// its Action/Resource entries carry no ARNs.
+// iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
+// Action/Resource entries carry no ARNs.
 export const boundaryPolicy = new aws.iam.Policy('EntHomeAccessBoundary', {
   name: `${policyNamePrefix}Boundary`,
   description:
@@ -66,6 +70,49 @@ export const boundaryPolicy = new aws.iam.Policy('EntHomeAccessBoundary', {
   path: '/',
   policy: fs.readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary.json'), 'utf-8'),
 });
+
+/**
+ * Opt-in privilege-escalation guards (PLA-6063): [name suffix, policy JSON] for each guard whose
+ * input is set, rendered from its EntHomeAccess.<guard>.json fragment. Every role ent-platform
+ * creates falls under the e???????????????-* glob, so turn one on only once Ent Home sends the same
+ * boundary ARN / tag for the tenant. See the README.
+ */
+export function guardPolicies(
+  p: string,
+  boundaryArn: string,
+  tagKey: string,
+  tagValue: string,
+): Array<[string, string]> {
+  const specs: Array<[string, string, string, Record<string, string>]> = [
+    [boundaryArn, 'EntHomeAccess.boundary-guard.json', 'BoundaryGuard', { '<PERMISSIONS_BOUNDARY_ARN>': boundaryArn }],
+    [tagKey, 'EntHomeAccess.owner-tag-guard.json', 'OwnerTagGuard', { '<OWNER_TAG_KEY>': tagKey, '<OWNER_TAG_VALUE>': tagValue }],
+  ];
+  return specs
+    .filter(([enabled]) => enabled)
+    .map(([, filename, suffix, values]) => {
+      let raw = fs.readFileSync(path.join(repoRoot, filename), 'utf-8').replaceAll('arn:aws:', `arn:${p}:`);
+      for (const [placeholder, value] of Object.entries(values)) {
+        raw = raw.replaceAll(placeholder, value);
+      }
+      return [suffix, raw];
+    });
+}
+
+// Which guards exist is known from config alone; only the partition inside them waits on AWS.
+export const guards = guardPolicies('aws', permissionsBoundaryArn, ownerTagKey, ownerTagValue).map(
+  ([suffix]) =>
+    [
+      suffix,
+      new aws.iam.Policy(`EntHomeAccess${suffix}`, {
+        name: `${policyNamePrefix}${suffix}`,
+        description: policyDescription,
+        path: '/',
+        policy: partition.apply(
+          (p) => Object.fromEntries(guardPolicies(p, permissionsBoundaryArn, ownerTagKey, ownerTagValue))[suffix],
+        ),
+      }),
+    ] as const,
+);
 
 export const role = new aws.iam.Role('EntDeployRole', {
   name: roleName,
@@ -82,6 +129,14 @@ export const attachments = policies.map(
       role: role.name,
       policyArn: policy.arn,
     }),
+).concat(
+  guards.map(
+    ([suffix, guard]) =>
+      new aws.iam.RolePolicyAttachment(`EntDeployRoleAttachment${suffix}`, {
+        role: role.name,
+        policyArn: guard.arn,
+      }),
+  ),
 );
 
 export const roleArn = role.arn;

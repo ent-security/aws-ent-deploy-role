@@ -15,5 +15,5 @@ output "role_arn" {
 
 output "boundary_policy_arn" {
   value       = module.deploy_permissions.boundary_policy_arn
-  description = "ARN of the EntHomeAccessBoundary permissions-boundary policy. Not attached to the role -- see the IAM privilege-escalation guard section in the README."
+  description = "ARN of the EntHomeAccessBoundary policy, Ent's default permissions boundary. Not attached to the role; pass it as permissions_boundary_arn to enforce it. See the IAM privilege-escalation guard section in the README."
 }

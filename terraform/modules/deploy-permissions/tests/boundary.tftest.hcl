@@ -1,14 +1,6 @@
-# Regression test for the IAM privilege-escalation gap: IAMAccess grants iam:* (including
-# CreateRole/PutRolePolicy/AttachRolePolicy) on role/policy/instance-profile resources matching
-# role/e???????????????-*, and STSAssumeRoleAccess grants sts:AssumeRole on the same role glob. IAM
-# authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE resource, not the policy
-# document being attached, so without a boundary requirement the deploy role could create a role
-# under the glob, attach an unbounded policy to it, then self-assume it for full privilege
-# escalation using only permissions it already has.
-#
-# This test proves the fix: iam:CreateRole under the glob is denied unless the caller supplies the
-# EntHomeAccessBoundary permissions boundary, and that boundary can never be changed or removed
-# once set (explicit Deny beats the iam:* Allow, regardless of statement order).
+# Ent's default permissions-boundary policy (EntHomeAccessBoundary): its shape, and that it can never
+# constrain or be tampered with by the deploy role itself. Whether a boundary is ENFORCED is the
+# opt-in BoundaryGuard policy -- see guards.tftest.hcl.
 #
 # Runs credential-free: same pattern as zerodiff.tftest.hcl.
 
@@ -19,53 +11,6 @@ provider "aws" {
   skip_credentials_validation = true
   skip_requesting_account_id  = true
   skip_metadata_api_check     = true
-}
-
-run "create_role_denied_without_matching_boundary" {
-  command = plan
-
-  assert {
-    condition = anytrue([
-      for s in jsondecode(output.policy_json_by_group["identity-security"]).Statement :
-      (
-        s.Sid == "IAMBoundaryEnforcement" &&
-        s.Effect == "Deny" &&
-        contains(flatten([s.Action]), "iam:CreateRole") &&
-        try(s.Condition.StringNotLike["iam:PermissionsBoundary"], null) == "arn:aws:iam::*:policy/EntHomeAccessBoundary"
-      )
-    ])
-    error_message = "IAMBoundaryEnforcement must Deny iam:CreateRole under the role glob unless iam:PermissionsBoundary (StringNotLike, for the account-id wildcard) equals the EntHomeAccessBoundary ARN."
-  }
-
-  # The Deny's Resource must cover the same role glob STSAssumeRoleAccess grants sts:AssumeRole on
-  # -- otherwise a role created outside the glob-but-still-assumable-by-this-role window would slip
-  # through unenforced.
-  assert {
-    condition = anytrue([
-      for s in jsondecode(output.policy_json_by_group["identity-security"]).Statement :
-      s.Sid == "IAMBoundaryEnforcement" && contains(flatten([s.Resource]), "arn:aws:iam::*:role/e???????????????-*")
-    ])
-    error_message = "IAMBoundaryEnforcement must scope to the same role/e???????????????-* glob as STSAssumeRoleAccess."
-  }
-}
-
-run "boundary_cannot_be_stripped_once_set" {
-  command = plan
-
-  assert {
-    condition = anytrue([
-      for s in jsondecode(output.policy_json_by_group["identity-security"]).Statement :
-      (
-        s.Sid == "IAMBoundaryProtection" &&
-        s.Effect == "Deny" &&
-        contains(flatten([s.Action]), "iam:PutRolePermissionsBoundary") &&
-        contains(flatten([s.Action]), "iam:DeleteRolePermissionsBoundary") &&
-        contains(flatten([s.Resource]), "arn:aws:iam::*:role/e???????????????-*") &&
-        !can(s.Condition)
-      )
-    ])
-    error_message = "IAMBoundaryProtection must unconditionally Deny iam:PutRolePermissionsBoundary and iam:DeleteRolePermissionsBoundary on the role glob -- any condition would give an escape hatch to strip the boundary."
-  }
 }
 
 run "boundary_policy_shape_and_isolation" {

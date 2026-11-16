@@ -165,45 +165,6 @@ locals {
       ]
     },
     {
-      # Closes the privilege-escalation gap in IAMAccess: that statement grants iam:* (including
-      # iam:CreateRole/PutRolePolicy/AttachRolePolicy) on role/policy/instance-profile resources
-      # matching the same e???????????????-* glob that STSAssumeRoleAccess grants sts:AssumeRole on.
-      # IAM authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE resource, not the
-      # policy document being attached -- so without this, the deploy role could create a new role
-      # under the glob, attach an unbounded policy to it, then self-assume it via the
-      # already-granted sts:AssumeRole for full privilege escalation, using only permissions it
-      # already has.
-      #
-      # The fix: deny iam:CreateRole under the glob unless the caller supplies the
-      # EntHomeAccessBoundary permissions boundary. A permissions boundary caps a role's EFFECTIVE
-      # permissions to the intersection of its identity-based policies and the boundary, regardless
-      # of what gets attached later -- so PutRolePolicy/AttachRolePolicy need no matching
-      # constraint of their own; whatever they attach is already capped by the boundary set at
-      # creation (see IAMBoundaryProtection below, which stops the boundary from being removed).
-      # StringNotLike (not StringNotEquals) so the account-id wildcard in the boundary ARN matches
-      # literally rather than needing an exact per-account value.
-      Sid      = "IAMBoundaryEnforcement"
-      Effect   = "Deny"
-      Action   = "iam:CreateRole"
-      Resource = "arn:${local.partition}:iam::*:role/e???????????????-*"
-      Condition = {
-        StringNotLike = {
-          "iam:PermissionsBoundary" = "arn:${local.partition}:iam::*:policy/${var.policy_name}Boundary"
-        }
-      }
-    },
-    {
-      # Without this, the deploy role could set EntHomeAccessBoundary at CreateRole time (satisfying
-      # IAMBoundaryEnforcement above) and then immediately strip it via iam:PutRolePermissionsBoundary
-      # (swap in a no-op boundary) or iam:DeleteRolePermissionsBoundary, defeating the enforcement.
-      # Explicit Deny always wins over the iam:* Allow in IAMAccess, so the boundary can never be
-      # changed or removed once a role under the glob has one.
-      Sid      = "IAMBoundaryProtection"
-      Effect   = "Deny"
-      Action   = ["iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary"]
-      Resource = "arn:${local.partition}:iam::*:role/e???????????????-*"
-    },
-    {
       Sid      = "IAMSessionContextAccess"
       Effect   = "Allow"
       Action   = ["iam:GetRole"]
@@ -457,8 +418,6 @@ locals {
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
     IAMAccess                     = "identity-security"
-    IAMBoundaryEnforcement        = "identity-security"
-    IAMBoundaryProtection         = "identity-security"
     IAMSessionContextAccess       = "identity-security"
     IAMServiceLinkedRoleAccess    = "identity-security"
     OrgBootstrapRoleCleanupAccess = "identity-security"
@@ -519,11 +478,11 @@ resource "aws_iam_policy" "this" {
   tags = var.tags
 }
 
-# Permissions boundary for IAMBoundaryEnforcement above. NOT attached to the deploy role itself --
-# it would strip the deploy role's own iam:*/sts:AssumeRole grants on the glob, breaking it. It
-# exists only to be referenced by ARN when the deploy role creates a new role under
-# role/e???????????????-*, capping that new role's effective permissions regardless of what policy
-# gets attached to it.
+# Ent's default permissions boundary: an ARN a customer without its own boundary can pass as
+# var.permissions_boundary_arn to switch on the boundary guard below. NOT attached to the deploy role
+# itself -- it would strip the deploy role's own iam:*/sts:AssumeRole grants on the glob, breaking
+# it. When referenced, it caps the effective permissions of every role the deploy role creates under
+# role/e???????????????-*, regardless of what policy gets attached to it.
 #
 # BoundaryBaseline is deliberately NOT "Allow *": that would let a role created under the glob,
 # with (say) AdministratorAccess attached, exercise the full AWS surface -- Lambda, Organizations,
@@ -536,15 +495,13 @@ resource "aws_iam_policy" "this" {
 # Named outside the e???????????????-* glob (EntHomeAccessBoundary, not e???????????????-*) so the
 # IAMAccess statement's own iam:* grant -- scoped to that glob -- can't modify or delete it.
 #
-# path is hardcoded to "/" (not var.policy_path): IAMBoundaryEnforcement's condition ARN
-# (arn:${partition}:iam::*:policy/${var.policy_name}Boundary) assumes the root path, and every
-# other IaC variant (CFN, CDK, Pulumi) hardcodes "/" for this policy too. If var.policy_path is
-# ever wired in here, the condition ARN above must be updated to match.
+# path is hardcoded to "/" (not var.policy_path), matching every other IaC variant (CFN, CDK,
+# Pulumi), so its ARN is always arn:${partition}:iam::<account>:policy/${var.policy_name}Boundary.
 #
 # No partition templating needed: none of the actions/resources below carry ARNs.
 resource "aws_iam_policy" "boundary" {
   name        = "${var.policy_name}Boundary"
-  description = "Permissions boundary attached (via iam:PermissionsBoundary at CreateRole time) to any IAM role the deploy role creates under the e???????????????-* glob. Not attached to the deploy role itself -- referenced only by ARN in the IAMBoundaryEnforcement Deny condition."
+  description = "Ent default permissions boundary for IAM roles the deploy role creates under the e???????????????-* glob. Not attached to the deploy role itself -- enforced only when its ARN is passed as permissions_boundary_arn."
   path        = "/"
 
   policy = jsonencode({
@@ -604,6 +561,117 @@ resource "aws_iam_policy" "boundary" {
           "sts:TagSession",
         ]
         Resource = "*"
+      },
+    ]
+  })
+
+  tags = var.tags
+}
+
+# -------------------------------------------------------------------------------------------------
+# Opt-in privilege-escalation guards (PLA-6063).
+#
+# IAMAccess grants iam:* on role/e???????????????-* and STSAssumeRoleAccess grants sts:AssumeRole on
+# the same glob. IAM authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE, not the
+# policy document, so with neither guard on the deploy role can create a role under the glob, give
+# it "*:*" inline, and assume it.
+#
+# Both guards are off by default (empty variables -> no policy, no plan diff). Every role
+# ent-platform creates is named e<hash15>-..., so it falls under the glob: turn a guard on only once
+# Home sends the same boundary ARN / tag for the tenant, or that tenant's deploys are denied.
+#
+# Each guard is its own managed policy (not statements in the four functional policies) so those stay
+# byte-identical to their EntHomeAccess.<domain>.json files, and so CloudFormation can build the tag
+# guard -- whose condition key embeds the tag key -- as one substituted JSON string. Both are named
+# outside the glob, so IAMAccess cannot edit or delete them, and the deploy role has no IAM
+# permission on itself, so it cannot detach them. Statements mirror EntHomeAccess.boundary-guard.json
+# and EntHomeAccess.owner-tag-guard.json; tests/guards.tftest.hcl keeps them in lockstep.
+# -------------------------------------------------------------------------------------------------
+
+locals {
+  guard_role_glob = "arn:${local.partition}:iam::*:role/e???????????????-*"
+}
+
+resource "aws_iam_policy" "boundary_guard" {
+  count = var.permissions_boundary_arn == "" ? 0 : 1
+
+  name        = "${var.policy_name}BoundaryGuard"
+  description = "Requires the customer's permissions boundary on every role the Ent deploy role creates or grants permissions to under role/e???????????????-*, and keeps it from being removed or edited."
+  path        = var.policy_path
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # CreateRole: a new role must carry the boundary. PutRolePermissionsBoundary: the boundary can
+        # only ever be set TO this ARN (so existing unbounded roles can be moved onto it, never off it).
+        # PutRolePolicy/AttachRolePolicy: no permissions can be added to a role that lacks it, which
+        # closes the same escalation through roles created before the guard was switched on.
+        Sid      = "IAMBoundaryEnforcement"
+        Effect   = "Deny"
+        Action   = ["iam:AttachRolePolicy", "iam:CreateRole", "iam:PutRolePermissionsBoundary", "iam:PutRolePolicy"]
+        Resource = local.guard_role_glob
+        Condition = {
+          StringNotEquals = { "iam:PermissionsBoundary" = var.permissions_boundary_arn }
+        }
+      },
+      {
+        Sid      = "IAMBoundaryRemovalProtection"
+        Effect   = "Deny"
+        Action   = "iam:DeleteRolePermissionsBoundary"
+        Resource = local.guard_role_glob
+      },
+      {
+        Sid      = "IAMBoundaryPolicyProtection"
+        Effect   = "Deny"
+        Action   = ["iam:CreatePolicyVersion", "iam:DeletePolicy", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion"]
+        Resource = var.permissions_boundary_arn
+      },
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_policy" "owner_tag_guard" {
+  count = var.owner_tag_key == "" ? 0 : 1
+
+  name        = "${var.policy_name}OwnerTagGuard"
+  description = "Requires the customer's ownership tag on every role the Ent deploy role creates under role/e???????????????-*, and keeps it from being changed or removed."
+  path        = var.policy_path
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # A missing tag fails StringNotEquals too, so an untagged CreateRole is denied.
+        Sid      = "IAMOwnerTagEnforcement"
+        Effect   = "Deny"
+        Action   = "iam:CreateRole"
+        Resource = local.guard_role_glob
+        Condition = {
+          StringNotEquals = { "aws:RequestTag/${var.owner_tag_key}" = var.owner_tag_value }
+        }
+      },
+      {
+        # Tagging existing roles with the right value stays allowed, so they can be brought in line.
+        Sid      = "IAMOwnerTagValueProtection"
+        Effect   = "Deny"
+        Action   = "iam:TagRole"
+        Resource = local.guard_role_glob
+        Condition = {
+          "ForAnyValue:StringEqualsIgnoreCase" = { "aws:TagKeys" = var.owner_tag_key }
+          StringNotEquals                      = { "aws:RequestTag/${var.owner_tag_key}" = var.owner_tag_value }
+        }
+      },
+      {
+        Sid      = "IAMOwnerTagRemovalProtection"
+        Effect   = "Deny"
+        Action   = "iam:UntagRole"
+        Resource = local.guard_role_glob
+        Condition = {
+          "ForAnyValue:StringEqualsIgnoreCase" = { "aws:TagKeys" = var.owner_tag_key }
+        }
       },
     ]
   })

@@ -13,6 +13,11 @@ role_description = (
     or "Role that allows Ent Home to assume AdministratorAccess role"
 )
 tags = config.get_object("tags") or {}
+permissions_boundary_arn = config.get("permissionsBoundaryArn") or ""
+owner_tag_key = config.get("ownerTagKey") or ""
+owner_tag_value = config.get("ownerTagValue") or ""
+if owner_tag_key and not owner_tag_value:
+    raise ValueError("ownerTagValue is required when ownerTagKey is set")
 
 POLICY_NAME_PREFIX = "EntHomeAccess"
 POLICY_DESCRIPTION = (
@@ -56,12 +61,10 @@ for _filename, _suffix in POLICY_FILES:
         policy=_policy_json,
     )
 
-# Permissions boundary for IAMBoundaryEnforcement (in EntHomeAccess.identity-security.json). NOT
+# Ent's default permissions boundary: pass its ARN as permissionsBoundaryArn to enforce it. NOT
 # attached to the deploy role itself below -- it would strip the deploy role's own
-# iam:*/sts:AssumeRole grants on the glob, breaking it. It exists only to be referenced by ARN when
-# the deploy role creates a new role under role/e???????????????-*, capping that new role's
-# effective permissions regardless of what policy gets attached to it. No partition rewrite needed:
-# its Action/Resource entries carry no ARNs.
+# iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
+# Action/Resource entries carry no ARNs.
 boundary_policy = aws.iam.Policy(
     "EntHomeAccessBoundary",
     name=f"{POLICY_NAME_PREFIX}Boundary",
@@ -69,6 +72,43 @@ boundary_policy = aws.iam.Policy(
     path="/",
     policy=(repo_root / "EntHomeAccess.boundary.json").read_text(),
 )
+
+
+
+def guard_policies(partition, boundary_arn, tag_key, tag_value):
+    """Opt-in privilege-escalation guards (PLA-6063): {name suffix: policy JSON} for each guard whose
+    input is set, rendered from its EntHomeAccess.<guard>.json fragment. Every role ent-platform
+    creates falls under the e???????????????-* glob, so turn one on only once Ent Home sends the same
+    boundary ARN / tag for the tenant. See the README."""
+    specs = (
+        (boundary_arn, "EntHomeAccess.boundary-guard.json", "BoundaryGuard",
+         {"<PERMISSIONS_BOUNDARY_ARN>": boundary_arn}),
+        (tag_key, "EntHomeAccess.owner-tag-guard.json", "OwnerTagGuard",
+         {"<OWNER_TAG_KEY>": tag_key, "<OWNER_TAG_VALUE>": tag_value}),
+    )
+    guards = {}
+    for enabled, filename, suffix, values in specs:
+        if not enabled:
+            continue
+        raw = (repo_root / filename).read_text().replace("arn:aws:", f"arn:{partition}:")
+        for placeholder, value in values.items():
+            raw = raw.replace(placeholder, value)
+        guards[suffix] = raw
+    return guards
+
+
+guards = {
+    suffix: aws.iam.Policy(
+        f"EntHomeAccess{suffix}",
+        name=f"{POLICY_NAME_PREFIX}{suffix}",
+        description=POLICY_DESCRIPTION,
+        path="/",
+        policy=policy_json,
+    )
+    for suffix, policy_json in guard_policies(
+        partition, permissions_boundary_arn, owner_tag_key, owner_tag_value
+    ).items()
+}
 
 role = aws.iam.Role(
     "EntDeployRole",
@@ -86,6 +126,12 @@ for _filename, _suffix in POLICY_FILES:
         f"EntDeployRoleAttachment{_suffix}",
         role=role.name,
         policy_arn=policies[_suffix].arn,
+    )
+for _suffix, _guard in guards.items():
+    attachments[_suffix] = aws.iam.RolePolicyAttachment(
+        f"EntDeployRoleAttachment{_suffix}",
+        role=role.name,
+        policy_arn=_guard.arn,
     )
 
 pulumi.export("roleArn", role.arn)

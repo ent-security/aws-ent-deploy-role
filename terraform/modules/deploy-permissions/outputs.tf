@@ -1,9 +1,14 @@
-# The real output: ARNs of all four functional managed policies. Trust modules attach every entry.
-# Sorted by map key for a stable order (compute-network, data-storage, identity-security,
-# observability-platform).
+# The real output: ARNs of every managed policy the deploy role needs. Trust modules attach every
+# entry. The four functional policies come first, sorted by map key (compute-network, data-storage,
+# identity-security, observability-platform), then the opt-in guards (boundary, owner tag) when on.
+# Guards go last so switching one on never shifts the index-keyed attachments of the four.
 output "policy_arns" {
-  value       = [for k in sort(keys(aws_iam_policy.this)) : aws_iam_policy.this[k].arn]
-  description = "ARNs of the four functional permission policies (Compute, Data, Security, Platform). Attach all four to the deploy role."
+  value = concat(
+    [for k in sort(keys(aws_iam_policy.this)) : aws_iam_policy.this[k].arn],
+    aws_iam_policy.boundary_guard[*].arn,
+    aws_iam_policy.owner_tag_guard[*].arn,
+  )
+  description = "ARNs of the four functional permission policies (Compute, Data, Security, Platform), followed by the BoundaryGuard / OwnerTagGuard policies when permissions_boundary_arn / owner_tag_key are set. Attach every entry to the deploy role."
 }
 
 # Backward-compat single ARN. The pre-split module exposed one policy_arn; consumers and the
@@ -27,12 +32,11 @@ output "policy_json_by_group" {
   description = "Map of functional domain -> rendered policy JSON. Used by the zero-diff test to assert each rendered policy matches its per-domain file."
 }
 
-# The permissions-boundary policy (see IAMBoundaryEnforcement in EntHomeAccessSecurity). Sits
-# outside the for_each-driven aws_iam_policy.this above -- it's not one of the four functional
-# policies and is never attached to the deploy role -- so it needs its own output.
+# Ent's default permissions-boundary policy. Never attached to the deploy role; pass its ARN as
+# permissions_boundary_arn to enforce it.
 output "boundary_policy_arn" {
   value       = aws_iam_policy.boundary.arn
-  description = "ARN of the permissions-boundary policy (EntHomeAccessBoundary). Not attached to the deploy role -- it's the boundary the deploy role must apply (via iam:PermissionsBoundary) to any role it creates under role/e???????????????-*. Not part of policy_arns."
+  description = "ARN of Ent's default permissions-boundary policy (EntHomeAccessBoundary). Not attached to the deploy role and not part of policy_arns. Pass it as permissions_boundary_arn to require it on every role the deploy role creates under role/e???????????????-*."
 }
 
 output "boundary_policy_name" {
@@ -45,4 +49,16 @@ output "boundary_policy_name" {
 output "boundary_policy_json" {
   value       = aws_iam_policy.boundary.policy
   description = "Rendered JSON of the permissions-boundary policy. Used by the zero-diff test to assert it matches EntHomeAccess.boundary.json."
+}
+
+# Rendered guard policy JSON (null when that guard is off). Used by tests/guards.tftest.hcl to assert
+# each matches its EntHomeAccess.<guard>.json fragment.
+output "boundary_guard_policy_json" {
+  value       = one(aws_iam_policy.boundary_guard[*].policy)
+  description = "Rendered JSON of the BoundaryGuard policy, or null when permissions_boundary_arn is empty."
+}
+
+output "owner_tag_guard_policy_json" {
+  value       = one(aws_iam_policy.owner_tag_guard[*].policy)
+  description = "Rendered JSON of the OwnerTagGuard policy, or null when owner_tag_key is empty."
 }
