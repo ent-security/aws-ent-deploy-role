@@ -111,27 +111,18 @@ class TestEntDeployRole(unittest.TestCase):
 
     def test_guards_off_by_default(self):
         self.assertEqual(infra.guards, {})
-        self.assertEqual(infra.guard_policies("aws", "", "", ""), {})
+        self.assertIsNone(infra.boundary_guard_policy("aws", ""))
 
-    def test_guard_policies_render_fragments(self):
+    def test_boundary_guard_renders_fragment(self):
         import json
 
-        rendered = infra.guard_policies(
-            "aws-us-gov",
-            "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
-            "Owner Role",
-            "ent",
+        rendered = infra.boundary_guard_policy(
+            "aws-us-gov", "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary"
         )
-        self.assertEqual(sorted(rendered), ["BoundaryGuard", "OwnerTagGuard"])
-        boundary = json.loads(rendered["BoundaryGuard"])
-        enforcement = boundary["Statement"][0]
+        enforcement = json.loads(rendered)["Statement"][0]
         self.assertEqual(enforcement["Resource"], "arn:aws-us-gov:iam::*:role/e???????????????-*")
         self.assertEqual(
             enforcement["Condition"]["StringNotEquals"]["iam:PermissionsBoundary"],
             "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
         )
-        owner = json.loads(rendered["OwnerTagGuard"])
-        self.assertEqual(
-            owner["Statement"][0]["Condition"]["StringNotEquals"], {"aws:RequestTag/Owner Role": "ent"}
-        )
-        self.assertNotIn("<", rendered["BoundaryGuard"] + rendered["OwnerTagGuard"])
+        self.assertNotIn("<", rendered)

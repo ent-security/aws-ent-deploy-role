@@ -47,8 +47,6 @@ class EntDeployRoleStack(cdk.Stack):
         role_description: Optional[str] = None,
         ent_tags: Optional[Mapping[str, str]] = None,
         permissions_boundary_arn: Optional[str] = None,
-        owner_tag_key: Optional[str] = None,
-        owner_tag_value: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -57,8 +55,6 @@ class EntDeployRoleStack(cdk.Stack):
         role_name = role_name or _DEFAULTS["role_name"]
         role_path = role_path or _DEFAULTS["role_path"]
         role_description = role_description or _DEFAULTS["role_description"]
-        if owner_tag_key and not owner_tag_value:
-            raise ValueError("owner_tag_value is required when owner_tag_key is set")
 
         # Resolve repo root: cdk/python/ent_deploy_role/ -> cdk/python/ -> cdk/ -> repo root
         repo_root = Path(__file__).resolve().parents[3]
@@ -93,27 +89,23 @@ class EntDeployRoleStack(cdk.Stack):
             policy_document=boundary_json,
         )
 
-        # Opt-in privilege-escalation guards (PLA-6063), each its own managed policy built from its
-        # EntHomeAccess.<guard>.json fragment. Off unless the matching input is set. Every role
-        # ent-platform creates falls under the e???????????????-* glob, so turn one on only once Ent
-        # Home sends the same boundary ARN / tag for the tenant. See the README.
+        # Opt-in privilege-escalation guard (PLA-6063), its own managed policy built from
+        # EntHomeAccess.boundary-guard.json. Off unless permissions_boundary_arn is set. Every role
+        # ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent
+        # Home sends the same boundary ARN for the tenant. See the README.
         guards = []
-        for enabled, filename, suffix, values in (
-            (permissions_boundary_arn, "EntHomeAccess.boundary-guard.json", "BoundaryGuard",
-             {"<PERMISSIONS_BOUNDARY_ARN>": permissions_boundary_arn}),
-            (owner_tag_key, "EntHomeAccess.owner-tag-guard.json", "OwnerTagGuard",
-             {"<OWNER_TAG_KEY>": owner_tag_key, "<OWNER_TAG_VALUE>": owner_tag_value}),
-        ):
-            if not enabled:
-                continue
-            guard_raw = (repo_root / filename).read_text().replace("arn:aws:", f"arn:{cdk.Aws.PARTITION}:")
-            for placeholder, value in values.items():
-                guard_raw = guard_raw.replace(placeholder, value)
+        if permissions_boundary_arn:
+            guard_raw = (
+                (repo_root / "EntHomeAccess.boundary-guard.json")
+                .read_text()
+                .replace("arn:aws:", f"arn:{cdk.Aws.PARTITION}:")
+                .replace("<PERMISSIONS_BOUNDARY_ARN>", permissions_boundary_arn)
+            )
             guards.append(
                 iam.CfnManagedPolicy(
                     self,
-                    f"EntHomeAccess{suffix}Policy",
-                    managed_policy_name=f"{_DEFAULTS['policy_name_prefix']}{suffix}",
+                    "EntHomeAccessBoundaryGuardPolicy",
+                    managed_policy_name=f"{_DEFAULTS['policy_name_prefix']}BoundaryGuard",
                     description=_DEFAULTS["policy_description"],
                     path="/",
                     policy_document=json.loads(guard_raw),

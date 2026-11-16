@@ -569,23 +569,22 @@ resource "aws_iam_policy" "boundary" {
 }
 
 # -------------------------------------------------------------------------------------------------
-# Opt-in privilege-escalation guards (PLA-6063).
+# Opt-in privilege-escalation guard (PLA-6063).
 #
 # IAMAccess grants iam:* on role/e???????????????-* and STSAssumeRoleAccess grants sts:AssumeRole on
 # the same glob. IAM authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE, not the
 # policy document, so with neither guard on the deploy role can create a role under the glob, give
 # it "*:*" inline, and assume it.
 #
-# Both guards are off by default (empty variables -> no policy, no plan diff). Every role
-# ent-platform creates is named e<hash15>-..., so it falls under the glob: turn a guard on only once
-# Home sends the same boundary ARN / tag for the tenant, or that tenant's deploys are denied.
+# Off by default (empty permissions_boundary_arn -> no policy, no plan diff). Every role ent-platform
+# creates is named e<hash15>-..., so it falls under the glob: turn the guard on only once Home sends
+# the same boundary ARN for the tenant, or that tenant's deploys are denied.
 #
-# Each guard is its own managed policy (not statements in the four functional policies) so those stay
-# byte-identical to their EntHomeAccess.<domain>.json files, and so CloudFormation can build the tag
-# guard -- whose condition key embeds the tag key -- as one substituted JSON string. Both are named
-# outside the glob, so IAMAccess cannot edit or delete them, and the deploy role has no IAM
-# permission on itself, so it cannot detach them. Statements mirror EntHomeAccess.boundary-guard.json
-# and EntHomeAccess.owner-tag-guard.json; tests/guards.tftest.hcl keeps them in lockstep.
+# The guard is its own managed policy (not statements in the four functional policies) so those stay
+# byte-identical to their EntHomeAccess.<domain>.json files. It is named outside the glob, so
+# IAMAccess cannot edit or delete it, and the deploy role has no IAM permission on itself, so it
+# cannot detach it. Statements mirror EntHomeAccess.boundary-guard.json; tests/guards.tftest.hcl
+# keeps them in lockstep.
 # -------------------------------------------------------------------------------------------------
 
 locals {
@@ -626,52 +625,6 @@ resource "aws_iam_policy" "boundary_guard" {
         Effect   = "Deny"
         Action   = ["iam:CreatePolicyVersion", "iam:DeletePolicy", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion"]
         Resource = var.permissions_boundary_arn
-      },
-    ]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_policy" "owner_tag_guard" {
-  count = var.owner_tag_key == "" ? 0 : 1
-
-  name        = "${var.policy_name}OwnerTagGuard"
-  description = "Requires the customer's ownership tag on every role the Ent deploy role creates under role/e???????????????-*, and keeps it from being changed or removed."
-  path        = var.policy_path
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        # A missing tag fails StringNotEquals too, so an untagged CreateRole is denied.
-        Sid      = "IAMOwnerTagEnforcement"
-        Effect   = "Deny"
-        Action   = "iam:CreateRole"
-        Resource = local.guard_role_glob
-        Condition = {
-          StringNotEquals = { "aws:RequestTag/${var.owner_tag_key}" = var.owner_tag_value }
-        }
-      },
-      {
-        # Tagging existing roles with the right value stays allowed, so they can be brought in line.
-        Sid      = "IAMOwnerTagValueProtection"
-        Effect   = "Deny"
-        Action   = "iam:TagRole"
-        Resource = local.guard_role_glob
-        Condition = {
-          "ForAnyValue:StringEqualsIgnoreCase" = { "aws:TagKeys" = var.owner_tag_key }
-          StringNotEquals                      = { "aws:RequestTag/${var.owner_tag_key}" = var.owner_tag_value }
-        }
-      },
-      {
-        Sid      = "IAMOwnerTagRemovalProtection"
-        Effect   = "Deny"
-        Action   = "iam:UntagRole"
-        Resource = local.guard_role_glob
-        Condition = {
-          "ForAnyValue:StringEqualsIgnoreCase" = { "aws:TagKeys" = var.owner_tag_key }
-        }
       },
     ]
   })

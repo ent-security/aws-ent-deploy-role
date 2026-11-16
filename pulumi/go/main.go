@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,44 +61,20 @@ func readRepoFile(name string) (string, error) {
 	return string(data), nil
 }
 
-// guardPolicy is one opt-in privilege-escalation guard, rendered from its fragment.
-type guardPolicy struct {
-	Suffix string
-	JSON   string
-}
-
-// guardPolicies renders the opt-in privilege-escalation guards (PLA-6063) whose input is set, from
-// their EntHomeAccess.<guard>.json fragments. Every role ent-platform creates falls under the
-// e???????????????-* glob, so turn one on only once Ent Home sends the same boundary ARN / tag for
-// the tenant. See the README.
-func guardPolicies(partition, boundaryArn, tagKey, tagValue string) ([]guardPolicy, error) {
-	if tagKey != "" && tagValue == "" {
-		return nil, errors.New("ownerTagValue is required when ownerTagKey is set")
+// boundaryGuardPolicy renders the opt-in privilege-escalation guard (PLA-6063) from
+// EntHomeAccess.boundary-guard.json, or returns "" when boundaryArn is empty. Every role
+// ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
+// sends the same boundary ARN for the tenant. See the README.
+func boundaryGuardPolicy(partition, boundaryArn string) (string, error) {
+	if boundaryArn == "" {
+		return "", nil
 	}
-	specs := []struct {
-		enabled  bool
-		filename string
-		suffix   string
-		values   []string // placeholder, value pairs for strings.NewReplacer
-	}{
-		{boundaryArn != "", "EntHomeAccess.boundary-guard.json", "BoundaryGuard",
-			[]string{"<PERMISSIONS_BOUNDARY_ARN>", boundaryArn}},
-		{tagKey != "", "EntHomeAccess.owner-tag-guard.json", "OwnerTagGuard",
-			[]string{"<OWNER_TAG_KEY>", tagKey, "<OWNER_TAG_VALUE>", tagValue}},
+	raw, err := readRepoFile("EntHomeAccess.boundary-guard.json")
+	if err != nil {
+		return "", err
 	}
-	guards := []guardPolicy{}
-	for _, spec := range specs {
-		if !spec.enabled {
-			continue
-		}
-		raw, err := readRepoFile(spec.filename)
-		if err != nil {
-			return nil, err
-		}
-		raw = strings.ReplaceAll(raw, "arn:aws:", "arn:"+partition+":")
-		guards = append(guards, guardPolicy{spec.suffix, strings.NewReplacer(spec.values...).Replace(raw)})
-	}
-	return guards, nil
+	raw = strings.ReplaceAll(raw, "arn:aws:", "arn:"+partition+":")
+	return strings.ReplaceAll(raw, "<PERMISSIONS_BOUNDARY_ARN>", boundaryArn), nil
 }
 
 func deploy(
@@ -110,8 +85,6 @@ func deploy(
 	roleDescription string,
 	tags map[string]string,
 	permissionsBoundaryArn string,
-	ownerTagKey string,
-	ownerTagValue string,
 ) (*deployed, error) {
 	// The functional policy files hold the canonical (commercial) `arn:aws:` ARNs. Rewrite the
 	// partition to the one we're deploying into so the policies work in commercial and GovCloud
@@ -158,17 +131,17 @@ func deploy(
 		return nil, err
 	}
 
-	guardDocs, err := guardPolicies(part.Partition, permissionsBoundaryArn, ownerTagKey, ownerTagValue)
+	guardJSON, err := boundaryGuardPolicy(part.Partition, permissionsBoundaryArn)
 	if err != nil {
 		return nil, err
 	}
-	guards := make([]*iam.Policy, 0, len(guardDocs))
-	for _, g := range guardDocs {
-		guard, err := iam.NewPolicy(ctx, "EntHomeAccess"+g.Suffix, &iam.PolicyArgs{
-			Name:        pulumi.String(policyNamePrefix + g.Suffix),
+	guards := []*iam.Policy{}
+	if guardJSON != "" {
+		guard, err := iam.NewPolicy(ctx, "EntHomeAccessBoundaryGuard", &iam.PolicyArgs{
+			Name:        pulumi.String(policyNamePrefix + "BoundaryGuard"),
 			Description: pulumi.String(policyDescription),
 			Path:        pulumi.String("/"),
-			Policy:      pulumi.String(g.JSON),
+			Policy:      pulumi.String(guardJSON),
 		})
 		if err != nil {
 			return nil, err
@@ -209,8 +182,8 @@ func deploy(
 		}
 	}
 
-	for i, guard := range guards {
-		_, err = iam.NewRolePolicyAttachment(ctx, "EntDeployRoleAttachment"+guardDocs[i].Suffix, &iam.RolePolicyAttachmentArgs{
+	for _, guard := range guards {
+		_, err = iam.NewRolePolicyAttachment(ctx, "EntDeployRoleAttachmentBoundaryGuard", &iam.RolePolicyAttachmentArgs{
 			Role:      role.Name,
 			PolicyArn: guard.Arn,
 		})
@@ -246,7 +219,7 @@ func main() {
 		_ = cfg.TryObject("tags", &tags)
 
 		result, err := deploy(ctx, entAwsAccountArn, roleName, rolePath, roleDescription, tags,
-			cfg.Get("permissionsBoundaryArn"), cfg.Get("ownerTagKey"), cfg.Get("ownerTagValue"))
+			cfg.Get("permissionsBoundaryArn"))
 		if err != nil {
 			return err
 		}

@@ -35,7 +35,7 @@ func TestEntDeployRole(t *testing.T) {
 		cfgJSON, _ := json.Marshal(cfg)
 		ctx.Log.Debug("config: "+string(cfgJSON), nil)
 
-		resources, err := deploy(ctx, "arn:aws:iam::123456789012:root", "HomeProdAssumeAdmin", "/", "desc", map[string]string{}, "", "", "")
+		resources, err := deploy(ctx, "arn:aws:iam::123456789012:root", "HomeProdAssumeAdmin", "/", "desc", map[string]string{}, "")
 		if err != nil {
 			return err
 		}
@@ -93,35 +93,25 @@ func TestEntDeployRole(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGuardPoliciesOffByDefault(t *testing.T) {
-	guards, err := guardPolicies("aws", "", "", "")
+func TestBoundaryGuardOffByDefault(t *testing.T) {
+	guard, err := boundaryGuardPolicy("aws", "")
 	assert.NoError(t, err)
-	assert.Empty(t, guards)
+	assert.Empty(t, guard)
 }
 
-func TestGuardPoliciesRenderFragments(t *testing.T) {
-	guards, err := guardPolicies("aws-us-gov", "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary", "Owner Role", "ent")
+func TestBoundaryGuardRendersFragment(t *testing.T) {
+	guard, err := boundaryGuardPolicy("aws-us-gov", "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary")
 	assert.NoError(t, err)
-	assert.Len(t, guards, 2)
 
-	var boundary struct {
+	var doc struct {
 		Statement []struct {
 			Resource  interface{}
 			Condition map[string]map[string]string
 		}
 	}
-	assert.NoError(t, json.Unmarshal([]byte(guards[0].JSON), &boundary))
-	assert.Equal(t, "BoundaryGuard", guards[0].Suffix)
-	assert.Equal(t, "arn:aws-us-gov:iam::*:role/e???????????????-*", boundary.Statement[0].Resource)
+	assert.NoError(t, json.Unmarshal([]byte(guard), &doc))
+	assert.Equal(t, "arn:aws-us-gov:iam::*:role/e???????????????-*", doc.Statement[0].Resource)
 	assert.Equal(t, "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
-		boundary.Statement[0].Condition["StringNotEquals"]["iam:PermissionsBoundary"])
-
-	assert.Equal(t, "OwnerTagGuard", guards[1].Suffix)
-	assert.Contains(t, guards[1].JSON, `"aws:RequestTag/Owner Role": "ent"`)
-	assert.NotContains(t, guards[0].JSON+guards[1].JSON, "<")
-}
-
-func TestGuardPoliciesRequireOwnerTagValue(t *testing.T) {
-	_, err := guardPolicies("aws", "", "Owner Role", "")
-	assert.Error(t, err)
+		doc.Statement[0].Condition["StringNotEquals"]["iam:PermissionsBoundary"])
+	assert.NotContains(t, guard, "<")
 }

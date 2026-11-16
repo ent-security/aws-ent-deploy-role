@@ -12,10 +12,6 @@ export interface EntDeployRoleStackProps extends cdk.StackProps {
   readonly entTags?: { [key: string]: string };
   /** Opt-in. Permissions boundary every role created under role/e???????????????-* must carry. See the README. */
   readonly permissionsBoundaryArn?: string;
-  /** Opt-in. Tag key (e.g. "Owner Role") every role created under role/e???????????????-* must carry. See the README. */
-  readonly ownerTagKey?: string;
-  /** Value the ownerTagKey tag must have. Required when ownerTagKey is set. */
-  readonly ownerTagValue?: string;
 }
 
 const DEFAULTS = {
@@ -58,9 +54,6 @@ export class EntDeployRoleStack extends cdk.Stack {
     const roleName = props.roleName ?? DEFAULTS.roleName;
     const rolePath = props.rolePath ?? DEFAULTS.rolePath;
     const roleDescription = props.roleDescription ?? DEFAULTS.roleDescription;
-    if (props.ownerTagKey && !props.ownerTagValue) {
-      throw new Error('ownerTagValue is required when ownerTagKey is set');
-    }
 
     // Resolve repo root: cdk/typescript/lib/ -> cdk/typescript/ -> cdk/ -> repo root
     const repoRoot = path.resolve(__dirname, '..', '..', '..');
@@ -92,32 +85,25 @@ export class EntDeployRoleStack extends cdk.Stack {
       policyDocument: boundaryJson,
     });
 
-    // Opt-in privilege-escalation guards (PLA-6063), each its own managed policy built from its
-    // EntHomeAccess.<guard>.json fragment. Off unless the matching prop is set. Every role ent-platform
-    // creates falls under the e???????????????-* glob, so turn one on only once Ent Home sends the same
-    // boundary ARN / tag for the tenant. See the README.
-    const guardSpecs: ReadonlyArray<readonly [string | undefined, string, string, Record<string, string>]> = [
-      [props.permissionsBoundaryArn, 'EntHomeAccess.boundary-guard.json', 'BoundaryGuard',
-        { '<PERMISSIONS_BOUNDARY_ARN>': props.permissionsBoundaryArn ?? '' }],
-      [props.ownerTagKey, 'EntHomeAccess.owner-tag-guard.json', 'OwnerTagGuard',
-        { '<OWNER_TAG_KEY>': props.ownerTagKey ?? '', '<OWNER_TAG_VALUE>': props.ownerTagValue ?? '' }],
-    ];
-    const guards = guardSpecs
-      .filter(([enabled]) => enabled)
-      .map(([, filename, suffix, values]) => {
-        let guardRaw = fs
-          .readFileSync(path.join(repoRoot, filename), 'utf-8')
-          .replaceAll('arn:aws:', `arn:${cdk.Aws.PARTITION}:`);
-        for (const [placeholder, value] of Object.entries(values)) {
-          guardRaw = guardRaw.replaceAll(placeholder, value);
-        }
-        return new iam.CfnManagedPolicy(this, `EntHomeAccess${suffix}Policy`, {
-          managedPolicyName: `${DEFAULTS.policyNamePrefix}${suffix}`,
-          description: DEFAULTS.policyDescription,
-          path: '/',
-          policyDocument: JSON.parse(guardRaw),
-        });
-      });
+    // Opt-in privilege-escalation guard (PLA-6063), its own managed policy built from
+    // EntHomeAccess.boundary-guard.json. Off unless permissionsBoundaryArn is set. Every role
+    // ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
+    // sends the same boundary ARN for the tenant. See the README.
+    const guards = props.permissionsBoundaryArn
+      ? [
+          new iam.CfnManagedPolicy(this, 'EntHomeAccessBoundaryGuardPolicy', {
+            managedPolicyName: `${DEFAULTS.policyNamePrefix}BoundaryGuard`,
+            description: DEFAULTS.policyDescription,
+            path: '/',
+            policyDocument: JSON.parse(
+              fs
+                .readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary-guard.json'), 'utf-8')
+                .replaceAll('arn:aws:', `arn:${cdk.Aws.PARTITION}:`)
+                .replaceAll('<PERMISSIONS_BOUNDARY_ARN>', props.permissionsBoundaryArn),
+            ),
+          }),
+        ]
+      : [];
 
     const trustJsonRaw = fs.readFileSync(path.join(repoRoot, 'role.json'), 'utf-8');
     const trustJson = JSON.parse(trustJsonRaw.replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));

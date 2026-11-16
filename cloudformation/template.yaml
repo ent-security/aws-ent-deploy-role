@@ -48,34 +48,9 @@ Parameters:
       output). Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on
       your tenant, or deploys are denied.
 
-  OwnerTagKey:
-    Type: String
-    Default: ''
-    AllowedPattern: '^(?![aA][wW][sS]:)[\p{L}\p{Z}\p{N}_.:/=+@-]{0,128}$'
-    ConstraintDescription: Must be a valid IAM tag key that does not start with aws:.
-    Description: >
-      Opt-in ownership-tag guard. Tag key (e.g. "Owner Role") every role the deploy role creates
-      under role/e???????????????-* must carry with value OwnerTagValue. Empty (default) leaves the
-      guard off. Set it only after Ent has set the same tag on your tenant, or deploys are denied.
-
-  OwnerTagValue:
-    Type: String
-    Default: ''
-    AllowedPattern: '^[\p{L}\p{Z}\p{N}_.:/=+@-]{0,256}$'
-    ConstraintDescription: Must be a valid IAM tag value.
-    Description: Value the OwnerTagKey tag must have. Required when OwnerTagKey is set.
-
-Rules:
-  OwnerTagValueRequired:
-    RuleCondition: !Not [!Equals [!Ref OwnerTagKey, '']]
-    Assertions:
-      - Assert: !Not [!Equals [!Ref OwnerTagValue, '']]
-        AssertDescription: OwnerTagValue is required when OwnerTagKey is set.
-
 Conditions:
   HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
   HasBoundaryGuard: !Not [!Equals [!Ref PermissionsBoundaryArn, '']]
-  HasOwnerTagGuard: !Not [!Equals [!Ref OwnerTagKey, '']]
 
 Resources:
   EntDeployPolicyCompute:
@@ -457,14 +432,13 @@ Resources:
               - sts:TagSession
             Resource: '*'
 
-  # Opt-in privilege-escalation guards (PLA-6063). IAMAccess grants iam:* on role/e???????????????-*
-  # and STSAssumeRoleAccess grants sts:AssumeRole on the same glob, so with neither guard on the
-  # deploy role can create a role under the glob, give it "*:*" inline, and assume it. Both are off
-  # by default. Every role ent-platform creates is named e<hash15>-..., so turn a guard on only once
-  # Ent Home sends the same boundary ARN / tag for the tenant. Statements mirror
-  # EntHomeAccess.boundary-guard.json and EntHomeAccess.owner-tag-guard.json; keep them in lockstep.
-  # Both policies are named outside the glob, and EntDeployRole has no IAM permission on itself, so
-  # it can neither edit nor detach them.
+  # Opt-in privilege-escalation guard (PLA-6063). IAMAccess grants iam:* on role/e???????????????-*
+  # and STSAssumeRoleAccess grants sts:AssumeRole on the same glob, so without the guard the deploy
+  # role can create a role under the glob, give it "*:*" inline, and assume it. Off by default. Every
+  # role ent-platform creates is named e<hash15>-..., so turn it on only once Ent Home sends the same
+  # boundary ARN for the tenant. Statements mirror EntHomeAccess.boundary-guard.json; keep them in
+  # lockstep. Named outside the glob, and EntDeployRole has no IAM permission on itself, so it can
+  # neither edit nor detach it.
   EntDeployPolicyBoundaryGuard:
     Type: AWS::IAM::ManagedPolicy
     Condition: HasBoundaryGuard
@@ -501,46 +475,6 @@ Resources:
               - iam:DeletePolicyVersion
               - iam:SetDefaultPolicyVersion
             Resource: !Ref PermissionsBoundaryArn
-
-  # The condition keys embed the tag key (aws:RequestTag/<key>), and CloudFormation can't put an
-  # intrinsic function in a map key, so this document is one substituted JSON string.
-  EntDeployPolicyOwnerTagGuard:
-    Type: AWS::IAM::ManagedPolicy
-    Condition: HasOwnerTagGuard
-    Properties:
-      ManagedPolicyName: !Sub '${PolicyNamePrefix}OwnerTagGuard'
-      Description: Requires the customer's ownership tag on every role the Ent deploy role creates under role/e???????????????-*, and keeps it from being changed or removed.
-      Path: /
-      PolicyDocument: !Sub |
-        {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Sid": "IAMOwnerTagEnforcement",
-              "Effect": "Deny",
-              "Action": "iam:CreateRole",
-              "Resource": "arn:${AWS::Partition}:iam::*:role/e???????????????-*",
-              "Condition": {"StringNotEquals": {"aws:RequestTag/${OwnerTagKey}": "${OwnerTagValue}"}}
-            },
-            {
-              "Sid": "IAMOwnerTagValueProtection",
-              "Effect": "Deny",
-              "Action": "iam:TagRole",
-              "Resource": "arn:${AWS::Partition}:iam::*:role/e???????????????-*",
-              "Condition": {
-                "ForAnyValue:StringEqualsIgnoreCase": {"aws:TagKeys": "${OwnerTagKey}"},
-                "StringNotEquals": {"aws:RequestTag/${OwnerTagKey}": "${OwnerTagValue}"}
-              }
-            },
-            {
-              "Sid": "IAMOwnerTagRemovalProtection",
-              "Effect": "Deny",
-              "Action": "iam:UntagRole",
-              "Resource": "arn:${AWS::Partition}:iam::*:role/e???????????????-*",
-              "Condition": {"ForAnyValue:StringEqualsIgnoreCase": {"aws:TagKeys": "${OwnerTagKey}"}}
-            }
-          ]
-        }
 
   EntDeployRole:
     Type: AWS::IAM::Role
@@ -583,7 +517,6 @@ Resources:
         - !Ref EntDeployPolicySecurity
         - !Ref EntDeployPolicyPlatform
         - !If [HasBoundaryGuard, !Ref EntDeployPolicyBoundaryGuard, !Ref AWS::NoValue]
-        - !If [HasOwnerTagGuard, !Ref EntDeployPolicyOwnerTagGuard, !Ref AWS::NoValue]
 
 Outputs:
   RoleArn:

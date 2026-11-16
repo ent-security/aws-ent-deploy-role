@@ -38,30 +38,3 @@ variable "permissions_boundary_arn" {
     error_message = "permissions_boundary_arn must be empty or an IAM policy ARN (arn:<partition>:iam::<12-digit account>:policy/<name>)."
   }
 }
-
-variable "owner_tag_key" {
-  description = "Opt-in. Tag key (e.g. \"Owner Role\") every role the deploy role creates under role/e???????????????-* must carry with value owner_tag_value. When set, adds the <policy_name>OwnerTagGuard policy: untagged or wrongly tagged CreateRole is denied, and the tag cannot be changed or removed. Empty (default) adds nothing. Turn it on only after Ent Home sends the same tag for the tenant (its resource tags), or that tenant's deploys are denied."
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = can(regex("^[\\p{L}\\p{Z}\\p{N}_.:/=+@-]{0,128}$", var.owner_tag_key)) && !startswith(lower(var.owner_tag_key), "aws:")
-    error_message = "owner_tag_key must be a valid IAM tag key (at most 128 letters, digits, spaces and _.:/=+-@) and must not start with aws:."
-  }
-}
-
-variable "owner_tag_value" {
-  description = "Value the owner_tag_key tag must have. Required when owner_tag_key is set."
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = can(regex("^[\\p{L}\\p{Z}\\p{N}_.:/=+@-]{0,256}$", var.owner_tag_value))
-    error_message = "owner_tag_value must be a valid IAM tag value (at most 256 letters, digits, spaces and _.:/=+-@)."
-  }
-
-  validation {
-    condition     = var.owner_tag_key == "" || var.owner_tag_value != ""
-    error_message = "owner_tag_value is required when owner_tag_key is set."
-  }
-}

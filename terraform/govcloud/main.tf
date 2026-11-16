@@ -25,8 +25,6 @@ module "deploy_permissions" {
   ]
 
   permissions_boundary_arn = var.permissions_boundary_arn
-  owner_tag_key            = var.owner_tag_key
-  owner_tag_value          = var.owner_tag_value
 }
 
 module "govcloud_rolesanywhere" {

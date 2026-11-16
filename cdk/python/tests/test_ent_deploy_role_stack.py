@@ -84,29 +84,19 @@ def test_parameterizes_arns_by_partition():
     assert "arn:aws:athena" not in template_json
 
 
-def test_guards_attached_when_enabled():
+def test_boundary_guard_attached_when_enabled():
     template = _template(
         permissions_boundary_arn="arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary",
-        owner_tag_key="Owner Role",
-        owner_tag_value="ent",
     )
-    # Four functional + Ent's default boundary + two guards; only the boundary stays unattached.
-    template.resource_count_is("AWS::IAM::ManagedPolicy", 7)
+    # Four functional + Ent's default boundary + the guard; only the boundary stays unattached.
+    template.resource_count_is("AWS::IAM::ManagedPolicy", 6)
     (role,) = template.find_resources("AWS::IAM::Role").values()
-    assert len(role["Properties"]["ManagedPolicyArns"]) == 6
+    assert len(role["Properties"]["ManagedPolicyArns"]) == 5
 
-    guards = {
-        p["Properties"]["ManagedPolicyName"]: json.dumps(p["Properties"]["PolicyDocument"])
+    (guard,) = [
+        json.dumps(p["Properties"]["PolicyDocument"])
         for p in template.find_resources("AWS::IAM::ManagedPolicy").values()
-        if p["Properties"]["ManagedPolicyName"].endswith("Guard")
-    }
-    assert "arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary" in guards["EntHomeAccessBoundaryGuard"]
-    assert "aws:RequestTag/Owner Role" in guards["EntHomeAccessOwnerTagGuard"]
-    assert "<" not in "".join(guards.values()), "a placeholder was left unsubstituted"
-
-
-def test_owner_tag_key_requires_value():
-    import pytest
-
-    with pytest.raises(ValueError):
-        _template(owner_tag_key="Owner Role")
+        if p["Properties"]["ManagedPolicyName"] == "EntHomeAccessBoundaryGuard"
+    ]
+    assert "arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary" in guard
+    assert "<" not in guard, "a placeholder was left unsubstituted"
