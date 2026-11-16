@@ -536,7 +536,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | EKS (addon versions) | `eks:DescribeAddonVersions` | unscoped (account-level API; `aws_eks_addon_version` data source reads it for metrics-server/adot/ebs-csi/cert-manager/pod-identity-agent) |
 | ElastiCache | `elasticache:*` | cache-clusters + replication/parameter/subnet groups prefixed `e???????????????-` |
 | ELB | `elasticloadbalancing:*` | unscoped (ALB Controller creates LBs with dynamic names) |
-| Glue | `glue:*` | catalog + databases/tables prefixed `e???????????????` (Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
+| Glue | `glue:*` | catalog + databases/tables/user-defined functions prefixed `e???????????????` (`DeleteDatabase` also authorizes against the database's tables and functions; Glue databases disallow hyphens so `ent-platform` substitutes `_`, e.g. `e96f0ec181aeb8f6_cur`) |
 | IAM | `iam:*` | roles/policies/instance-profiles prefixed `e???????????????-`; also `policy/AmazonEKS_*` (EKS pod-identity module creates `AmazonEKS_EBS_CSI-<timestamp>` directly) and `oidc-provider/oidc.eks.*.amazonaws.com/*` (EKS IRSA OIDC providers). Role creation under the glob requires the `EntHomeAccessBoundary` permissions boundary — see [IAM privilege-escalation guard](#iam-privilege-escalation-guard). |
 | IAM (session context) | `iam:GetRole` | unscoped (Terraform's `aws_iam_session_context` reads the deploy role itself, which does not match the `e???????????????-` prefix) |
 | IAM (service-linked) | `iam:CreateServiceLinkedRole` | `iam:AWSServiceName` allowlist: EKS, ELB, RDS, ElastiCache, OpenSearch, Backup, EFS (EFS `PutBackupPolicy` creates both `AWSServiceRoleForBackup` and `AWSServiceRoleForAmazonElasticFileSystem` on first use) |
@@ -544,7 +544,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 | KMS (account-level) | `kms:CreateKey`, `kms:ListAliases` | unscoped (neither action supports resource-level permissions) |
 | CloudWatch Logs | `logs:*` | log-groups prefixed `e???????????????-`, `/aws/*/e???????????????-*` (AWS-service-managed paths for RDS/ElastiCache/flow-logs/EKS), and `/<tenant-uuid>/*` (e.g. CloudTrail CIS-alarms log group created under `/<tenant_id>/aws/cloudtrail/…`) |
 | CloudWatch Logs (describe) | `logs:DescribeLogGroups`, `logs:DescribeLogStreams` | unscoped (describe APIs don't support resource-level permissions) |
-| RDS | `rds:*`, `rds-db:*` | DB/cluster/parameter/subnet/event resources prefixed `e???????????????-`, plus event-subscriptions prefixed `db-event-sub-` (hardcoded default name in `ent-platform`'s `db_event_subscription` module) |
+| RDS | `rds:*`, `rds-db:*` | DB/cluster/snapshot/parameter/subnet/event resources prefixed `e???????????????-`, plus event-subscriptions prefixed `db-event-sub-` (hardcoded default name in `ent-platform`'s `db_event_subscription` module) |
 | RDS (describe) | `rds:DescribeDBInstances` | unscoped (terraform provider calls this against `db:*` rather than a specific instance ARN) |
 | Resource Groups | `resource-groups:*` | groups prefixed `e???????????????-` |
 | Route 53 | `route53:*` | unscoped (hosted-zone list APIs don't support resource-level) |
