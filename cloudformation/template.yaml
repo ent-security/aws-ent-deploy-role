@@ -44,8 +44,8 @@ Parameters:
     ConstraintDescription: Must be empty or an IAM policy ARN (arn:<partition>:iam::<account>:policy/<name>).
     Description: >
       Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role
-      creates under role/e???????????????-* must carry (your own policy, or the PolicyArnBoundary
-      output). Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on
+      creates under role/e???????????????-* must carry. It must cap resources as well as actions.
+      Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on
       your tenant, or deploys are denied.
 
 Conditions:
@@ -370,68 +370,6 @@ Resources:
               - servicequotas:ListServiceQuotas
             Resource: '*'
 
-  # Ent's default permissions boundary: an ARN a customer without its own boundary can pass as
-  # PermissionsBoundaryArn to switch on the boundary guard. NOT attached to EntDeployRole itself via
-  # ManagedPolicyArns below -- it would strip EntDeployRole's own iam:*/sts:AssumeRole grants on the
-  # glob, breaking it. Named outside the e???????????????-* glob so IAMAccess (scoped to that glob)
-  # can't modify or delete it.
-  EntDeployPolicyBoundary:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: !Sub '${PolicyNamePrefix}Boundary'
-      Description: Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.
-      Path: /
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: BoundaryBaseline
-            Effect: Allow
-            Action:
-              - acm:*
-              - athena:*
-              - bcm-data-exports:*
-              - bedrock:*
-              - cloudwatch:*
-              - cur:Describe*
-              - cur:Get*
-              - cur:PutReportDefinition
-              - ec2:*
-              - ecr:*
-              - eks:*
-              - elasticache:*
-              - elasticfilesystem:*
-              - elasticloadbalancing:*
-              - glue:*
-              - kms:*
-              - logs:*
-              - rds:*
-              - rds-db:*
-              - resource-groups:*
-              - route53:*
-              - s3:*
-              - secretsmanager:*
-              - servicequotas:GetAWSDefaultServiceQuota
-              - servicequotas:GetServiceQuota
-              - servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota
-              - servicequotas:ListServiceQuotas
-              - servicequotas:RequestServiceQuotaIncrease
-              - sns:*
-              - sqs:*
-              - tag:*
-              - wafv2:*
-            Resource: '*'
-          - Sid: BoundaryDenyIAM
-            Effect: Deny
-            Action: iam:*
-            Resource: '*'
-          - Sid: BoundaryDenySTSAssumeRole
-            Effect: Deny
-            Action:
-              - sts:AssumeRole
-              - sts:AssumeRoleWithWebIdentity
-              - sts:TagSession
-            Resource: '*'
-
   # Opt-in privilege-escalation guard (PLA-6063). IAMAccess grants iam:* on role/e???????????????-*
   # and STSAssumeRoleAccess grants sts:AssumeRole on the same glob, so without the guard the deploy
   # role can create a role under the glob, give it "*:*" inline, and assume it. Off by default. Every
@@ -451,7 +389,8 @@ Resources:
         Statement:
           # CreateRole: a new role must carry the boundary. PutRolePermissionsBoundary: the boundary
           # can only ever be set TO this ARN. PutRolePolicy/AttachRolePolicy: no permissions can be
-          # added to a role that lacks it, which covers roles created before the guard was on.
+          # added to a role that lacks it. Roles created before the guard are NOT covered: every
+          # existing e...- role must carry the boundary before turning it on (see README).
           - Sid: IAMBoundaryEnforcement
             Effect: Deny
             Action:
@@ -556,8 +495,3 @@ Outputs:
     Value: !Ref EntDeployPolicySecurity
     Export:
       Name: !Sub ${AWS::StackName}-PolicyArn
-  PolicyArnBoundary:
-    Description: The ARN of the permissions-boundary policy applied to IAM roles the deploy role creates under role/e???????????????-*. Not attached to the deploy role itself.
-    Value: !Ref EntDeployPolicyBoundary
-    Export:
-      Name: !Sub ${AWS::StackName}-PolicyArnBoundary

@@ -115,3 +115,8 @@ func TestBoundaryGuardRendersFragment(t *testing.T) {
 		doc.Statement[0].Condition["StringNotEquals"]["iam:PermissionsBoundary"])
 	assert.NotContains(t, guard, "<")
 }
+
+func TestBoundaryGuardRejectsNonPolicyArn(t *testing.T) {
+	_, err := boundaryGuardPolicy("aws", "arn:aws:iam::123456789012:role/NotAPolicy")
+	assert.Error(t, err)
+}

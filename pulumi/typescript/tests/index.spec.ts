@@ -82,39 +82,23 @@ describe('EntDeployRole (Pulumi TS)', () => {
     });
   });
 
-  it('creates a separate boundary policy not attached to the role', (done) => {
-    // The boundary policy caps roles the deploy role creates -- it must not be
-    // attached to the deploy role, so it lives outside the `policies` array.
-    assert.strictEqual(infra.policies.length, 4);
-    infra.boundaryPolicy.name.apply((name: string | undefined) => {
-      try {
-        assert.strictEqual(name, 'EntHomeAccessBoundary');
-        done();
-      } catch (e) {
-        done(e);
-      }
-    });
-  });
-
   it('does not set or attach the boundary on the deploy role', (done) => {
-    // Setting the boundary on the deploy role (or attaching it as a managed policy) would cap the
-    // deploy role's own iam:*/sts:AssumeRole access. Assert the role carries no boundary and its
-    // registered attachments are exactly the four functional policies.
+    // A boundary on the deploy role itself would cap its own iam:*/sts:AssumeRole access. Assert the
+    // role carries none and, with the guard off, its registered attachments are exactly the four
+    // functional policies.
     pulumi
       .all([
-        infra.boundaryPolicy.arn,
         infra.role.permissionsBoundary,
         pulumi.all(infra.policies.map((p) => p.arn)),
         // Wait for every attachment to register before reading `registered`.
         pulumi.all(infra.attachments.map((a) => a.policyArn)),
       ])
-      .apply(([boundaryArn, permissionsBoundary, functionalArns]) => {
+      .apply(([permissionsBoundary, functionalArns]) => {
         try {
           assert.strictEqual(permissionsBoundary, undefined);
           const attached = registered
             .filter((r) => r.type === 'aws:iam/rolePolicyAttachment:RolePolicyAttachment')
             .map((r) => r.inputs.policyArn as string);
-          assert.ok(!attached.includes(boundaryArn), 'boundary policy must not be attached to the deploy role');
           assert.deepStrictEqual([...attached].sort(), [...functionalArns].sort());
           done();
         } catch (e) {
@@ -161,5 +145,9 @@ describe('EntDeployRole (Pulumi TS)', () => {
       'arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary',
     );
     assert.ok(!rendered.includes('<'));
+  });
+
+  it('rejects a boundary ARN that is not a policy', () => {
+    assert.throws(() => infra.boundaryGuardPolicy('aws', 'arn:aws:iam::123456789012:role/NotAPolicy'), /IAM policy ARN/);
   });
 });

@@ -31,25 +31,6 @@ output "policy_json_by_group" {
   description = "Map of functional domain -> rendered policy JSON. Used by the zero-diff test to assert each rendered policy matches its per-domain file."
 }
 
-# Ent's default permissions-boundary policy. Never attached to the deploy role; pass its ARN as
-# permissions_boundary_arn to enforce it.
-output "boundary_policy_arn" {
-  value       = aws_iam_policy.boundary.arn
-  description = "ARN of Ent's default permissions-boundary policy (EntHomeAccessBoundary). Not attached to the deploy role and not part of policy_arns. Pass it as permissions_boundary_arn to require it on every role the deploy role creates under role/e???????????????-*."
-}
-
-output "boundary_policy_name" {
-  value       = aws_iam_policy.boundary.name
-  description = "Name of the permissions-boundary policy (EntHomeAccessBoundary)."
-}
-
-# Rendered boundary policy JSON. Used by the zero-diff test to assert it matches
-# EntHomeAccess.boundary.json.
-output "boundary_policy_json" {
-  value       = aws_iam_policy.boundary.policy
-  description = "Rendered JSON of the permissions-boundary policy. Used by the zero-diff test to assert it matches EntHomeAccess.boundary.json."
-}
-
 # Rendered guard policy JSON (null when the guard is off). Used by tests/guards.tftest.hcl to assert
 # it matches EntHomeAccess.boundary-guard.json.
 output "boundary_guard_policy_json" {

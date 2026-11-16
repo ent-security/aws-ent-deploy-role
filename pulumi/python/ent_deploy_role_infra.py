@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pulumi
@@ -57,20 +58,6 @@ for _filename, _suffix in POLICY_FILES:
         policy=_policy_json,
     )
 
-# Ent's default permissions boundary: pass its ARN as permissionsBoundaryArn to enforce it. NOT
-# attached to the deploy role itself below -- it would strip the deploy role's own
-# iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
-# Action/Resource entries carry no ARNs.
-boundary_policy = aws.iam.Policy(
-    "EntHomeAccessBoundary",
-    name=f"{POLICY_NAME_PREFIX}Boundary",
-    description="Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.",
-    path="/",
-    policy=(repo_root / "EntHomeAccess.boundary.json").read_text(),
-)
-
-
-
 def boundary_guard_policy(partition, boundary_arn):
     """Opt-in privilege-escalation guard (PLA-6063): the BoundaryGuard policy JSON rendered from
     EntHomeAccess.boundary-guard.json, or None when boundary_arn is empty. Every role ent-platform
@@ -78,6 +65,9 @@ def boundary_guard_policy(partition, boundary_arn):
     boundary ARN for the tenant. See the README."""
     if not boundary_arn:
         return None
+    # Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+    if not re.fullmatch(r"arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+", boundary_arn):
+        raise ValueError(f"permissionsBoundaryArn must be an IAM policy ARN, got {boundary_arn!r}")
     return (
         (repo_root / "EntHomeAccess.boundary-guard.json")
         .read_text()
@@ -127,7 +117,9 @@ for _suffix, _guard in guards.items():
 
 pulumi.export("roleArn", role.arn)
 pulumi.export("roleName", role.name)
-pulumi.export("policyArns", [policies[suffix].arn for _, suffix in POLICY_FILES])
+# Every policy attached to the role: the four functional ones, then the guard when on.
+pulumi.export(
+    "policyArns", [policies[suffix].arn for _, suffix in POLICY_FILES] + [g.arn for g in guards.values()]
+)
 # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
 pulumi.export("policyArn", policies[COMPAT_POLICY_SUFFIX].arn)
-pulumi.export("boundaryPolicyArn", boundary_policy.arn)

@@ -69,35 +69,22 @@ class TestEntDeployRole(unittest.TestCase):
         return infra.role.assume_role_policy.apply(check)
 
     @pulumi.runtime.test
-    def test_boundary_policy_separate_from_functional_policies(self):
-        # The boundary policy caps roles the deploy role creates -- it must not be
-        # attached to the deploy role, so it lives outside the `policies` dict/loop.
-        self.assertNotIn("Boundary", infra.policies)
-
-        def check(name):
-            self.assertEqual(name, "EntHomeAccessBoundary")
-
-        return infra.boundary_policy.name.apply(check)
-
-    @pulumi.runtime.test
     def test_boundary_not_attached_to_deploy_role(self):
-        # Setting the boundary on the deploy role (or attaching it as a managed policy) would cap
-        # the deploy role's own iam:*/sts:AssumeRole access. Assert the role carries no boundary and
-        # its registered attachments are exactly the four functional policies.
+        # A boundary on the deploy role itself would cap its own iam:*/sts:AssumeRole access. Assert
+        # the role carries none and, with the guard off, its registered attachments are exactly the
+        # four functional policies.
         def check(args):
-            boundary_arn, permissions_boundary, *functional_arns = args
+            permissions_boundary, *functional_arns = args
             self.assertIsNone(permissions_boundary)
             attached = [a["policyArn"] for a in registered["aws:iam/rolePolicyAttachment:RolePolicyAttachment"]]
-            self.assertNotIn(boundary_arn, attached)
             self.assertEqual(sorted(attached), sorted(functional_arns))
 
         return pulumi.Output.all(
-            infra.boundary_policy.arn,
             infra.role.permissions_boundary,
             *[p.arn for p in infra.policies.values()],
             # Wait for every attachment to register before reading `registered`.
             *[a.policy_arn for a in infra.attachments.values()],
-        ).apply(lambda args: check(args[: 2 + len(infra.policies)]))
+        ).apply(lambda args: check(args[: 1 + len(infra.policies)]))
 
     @pulumi.runtime.test
     def test_policy_arns_rewritten_to_partition(self):
@@ -126,3 +113,7 @@ class TestEntDeployRole(unittest.TestCase):
             "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
         )
         self.assertNotIn("<", rendered)
+
+    def test_rejects_non_policy_boundary_arn(self):
+        with self.assertRaises(ValueError):
+            infra.boundary_guard_policy("aws", "arn:aws:iam::123456789012:role/NotAPolicy")

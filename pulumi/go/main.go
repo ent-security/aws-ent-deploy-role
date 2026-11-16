@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws"
@@ -12,10 +14,9 @@ import (
 )
 
 type deployed struct {
-	Policies       []*iam.Policy
-	Role           *iam.Role
-	BoundaryPolicy *iam.Policy
-	Guards         []*iam.Policy
+	Policies []*iam.Policy
+	Role     *iam.Role
+	Guards   []*iam.Policy
 }
 
 const (
@@ -65,9 +66,15 @@ func readRepoFile(name string) (string, error) {
 // EntHomeAccess.boundary-guard.json, or returns "" when boundaryArn is empty. Every role
 // ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
 // sends the same boundary ARN for the tenant. See the README.
+// Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+var boundaryArnRe = regexp.MustCompile(`^arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+$`)
+
 func boundaryGuardPolicy(partition, boundaryArn string) (string, error) {
 	if boundaryArn == "" {
 		return "", nil
+	}
+	if !boundaryArnRe.MatchString(boundaryArn) {
+		return "", fmt.Errorf("permissionsBoundaryArn must be an IAM policy ARN, got %q", boundaryArn)
 	}
 	raw, err := readRepoFile("EntHomeAccess.boundary-guard.json")
 	if err != nil {
@@ -111,24 +118,6 @@ func deploy(
 			return nil, err
 		}
 		policies = append(policies, policy)
-	}
-
-	// Ent's default permissions boundary: pass its ARN as permissionsBoundaryArn to enforce it. NOT
-	// attached to the deploy role itself below -- it would strip the deploy role's own
-	// iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
-	// Action/Resource entries carry no ARNs.
-	boundaryJSON, err := readRepoFile("EntHomeAccess.boundary.json")
-	if err != nil {
-		return nil, err
-	}
-	boundaryPolicy, err := iam.NewPolicy(ctx, "EntHomeAccessBoundary", &iam.PolicyArgs{
-		Name:        pulumi.String(policyNamePrefix + "Boundary"),
-		Description: pulumi.String("Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself."),
-		Path:        pulumi.String("/"),
-		Policy:      pulumi.String(boundaryJSON),
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	guardJSON, err := boundaryGuardPolicy(part.Partition, permissionsBoundaryArn)
@@ -192,7 +181,7 @@ func deploy(
 		}
 	}
 
-	return &deployed{Policies: policies, Role: role, BoundaryPolicy: boundaryPolicy, Guards: guards}, nil
+	return &deployed{Policies: policies, Role: role, Guards: guards}, nil
 }
 
 func main() {
@@ -227,8 +216,9 @@ func main() {
 		ctx.Export("roleArn", result.Role.Arn)
 		ctx.Export("roleName", result.Role.Name)
 
-		policyArns := make(pulumi.StringArray, 0, len(result.Policies))
-		for _, p := range result.Policies {
+		// Every policy attached to the role: the four functional ones, then the guard when on.
+		policyArns := make(pulumi.StringArray, 0, len(result.Policies)+len(result.Guards))
+		for _, p := range append(append([]*iam.Policy{}, result.Policies...), result.Guards...) {
 			policyArns = append(policyArns, p.Arn)
 		}
 		ctx.Export("policyArns", policyArns.ToStringArrayOutput())
@@ -239,7 +229,6 @@ func main() {
 				ctx.Export("policyArn", result.Policies[i].Arn)
 			}
 		}
-		ctx.Export("boundaryPolicyArn", result.BoundaryPolicy.Arn)
 		return nil
 	})
 }

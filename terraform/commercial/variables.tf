@@ -35,7 +35,7 @@ variable "tags" {
 }
 
 variable "permissions_boundary_arn" {
-  description = "Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role creates under role/e???????????????-* must carry (your own policy, or the boundary_policy_arn output). Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on your tenant, or deploys are denied. See README: IAM privilege-escalation guard."
+  description = "Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role creates under role/e???????????????-* must carry. Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on your tenant, or deploys are denied. See README: IAM privilege-escalation guard."
   type        = string
   default     = ""
 }

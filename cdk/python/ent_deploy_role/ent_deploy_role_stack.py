@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Mapping, Optional
 
@@ -30,6 +31,9 @@ _POLICY_FILES = [
     ("EntHomeAccess.identity-security.json", "Security"),
     ("EntHomeAccess.observability-platform.json", "Platform"),
 ]
+
+# Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+_BOUNDARY_ARN_RE = re.compile(r"arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+")
 
 # Suffix of the functional policy whose ARN backs the deprecated single-ARN `policy_arn` output.
 _COMPAT_POLICY_SUFFIX = "Security"
@@ -75,26 +79,16 @@ class EntDeployRoleStack(cdk.Stack):
                 policy_document=policy_json,
             )
 
-        # Ent's default permissions boundary: pass its ARN as permissions_boundary_arn to enforce it.
-        # NOT attached to the deploy role itself below -- it would strip the deploy role's own
-        # iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
-        # Action/Resource entries carry no ARNs.
-        boundary_json = json.loads((repo_root / "EntHomeAccess.boundary.json").read_text())
-        boundary_policy = iam.CfnManagedPolicy(
-            self,
-            "EntHomeAccessBoundaryPolicy",
-            managed_policy_name=f"{_DEFAULTS['policy_name_prefix']}Boundary",
-            description="Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.",
-            path="/",
-            policy_document=boundary_json,
-        )
-
         # Opt-in privilege-escalation guard (PLA-6063), its own managed policy built from
         # EntHomeAccess.boundary-guard.json. Off unless permissions_boundary_arn is set. Every role
         # ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent
         # Home sends the same boundary ARN for the tenant. See the README.
         guards = []
         if permissions_boundary_arn:
+            if not _BOUNDARY_ARN_RE.fullmatch(permissions_boundary_arn):
+                raise ValueError(
+                    f"permissions_boundary_arn must be an IAM policy ARN, got {permissions_boundary_arn!r}"
+                )
             guard_raw = (
                 (repo_root / "EntHomeAccess.boundary-guard.json")
                 .read_text()
@@ -136,10 +130,12 @@ class EntDeployRoleStack(cdk.Stack):
 
         self.role_arn = role.attr_arn
         self.role_name_out = role.ref
-        self.policy_arns = [managed_policies[suffix].ref for _, suffix in _POLICY_FILES]
+        # Every policy attached to the role: the four functional ones, then the guard when on.
+        self.policy_arns = [managed_policies[suffix].ref for _, suffix in _POLICY_FILES] + [
+            g.ref for g in guards
+        ]
         # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policy_arns.
         self.policy_arn = managed_policies[_COMPAT_POLICY_SUFFIX].ref
-        self.boundary_policy_arn = boundary_policy.ref
 
         cdk.CfnOutput(self, "RoleArn", value=self.role_arn)
         cdk.CfnOutput(self, "RoleName", value=self.role_name_out)
@@ -147,4 +143,3 @@ class EntDeployRoleStack(cdk.Stack):
             cdk.CfnOutput(self, f"PolicyArn{suffix}", value=managed_policies[suffix].ref)
         # Deprecated compat output, retained so existing references keep resolving.
         cdk.CfnOutput(self, "PolicyArn", value=self.policy_arn)
-        cdk.CfnOutput(self, "PolicyArnBoundary", value=self.boundary_policy_arn)

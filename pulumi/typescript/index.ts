@@ -54,18 +54,6 @@ export const policies = POLICY_FILES.map(([filename, suffix]) => {
   });
 });
 
-// Ent's default permissions boundary: pass its ARN as permissionsBoundaryArn to enforce it. NOT
-// attached to the deploy role itself below -- it would strip the deploy role's own
-// iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
-// Action/Resource entries carry no ARNs.
-export const boundaryPolicy = new aws.iam.Policy('EntHomeAccessBoundary', {
-  name: `${policyNamePrefix}Boundary`,
-  description:
-    'Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.',
-  path: '/',
-  policy: fs.readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary.json'), 'utf-8'),
-});
-
 /**
  * Opt-in privilege-escalation guard (PLA-6063): the BoundaryGuard policy JSON rendered from
  * EntHomeAccess.boundary-guard.json, or undefined when boundaryArn is empty. Every role ent-platform
@@ -75,6 +63,10 @@ export const boundaryPolicy = new aws.iam.Policy('EntHomeAccessBoundary', {
 export function boundaryGuardPolicy(p: string, boundaryArn: string): string | undefined {
   if (!boundaryArn) {
     return undefined;
+  }
+  // Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+  if (!/^arn:aws[a-z-]*:iam::[0-9]{12}:policy\/.+$/.test(boundaryArn)) {
+    throw new Error(`permissionsBoundaryArn must be an IAM policy ARN, got '${boundaryArn}'`);
   }
   return fs
     .readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary-guard.json'), 'utf-8')
@@ -119,7 +111,7 @@ export const attachments = policies.map(
 );
 
 export const roleArn = role.arn;
-export const policyArns = policies.map((p) => p.arn);
+// Every policy attached to the role: the four functional ones, then the guard when on.
+export const policyArns = [...policies, ...guards].map((p) => p.arn);
 // Backward-compat single ARN: EntHomeAccessSecurity. Deprecated — use policyArns.
 export const policyArn = policies[POLICY_FILES.findIndex(([, s]) => s === COMPAT_POLICY_SUFFIX)].arn;
-export const boundaryPolicyArn = boundaryPolicy.arn;

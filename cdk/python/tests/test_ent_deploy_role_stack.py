@@ -1,6 +1,7 @@
 import json
 
 import aws_cdk as cdk
+import pytest
 from aws_cdk import assertions
 
 from ent_deploy_role.ent_deploy_role_stack import EntDeployRoleStack
@@ -19,28 +20,18 @@ def _template(**props):
 
 def test_creates_four_functional_managed_policies():
     template = _template()
-    # Four functional managed policies (all attached to the role) plus the boundary policy.
-    template.resource_count_is("AWS::IAM::ManagedPolicy", 5)
+    # The permission set is split across four functional managed policies, all attached to the role.
+    template.resource_count_is("AWS::IAM::ManagedPolicy", 4)
     for name in (
         "EntHomeAccessCompute",
         "EntHomeAccessData",
         "EntHomeAccessSecurity",
         "EntHomeAccessPlatform",
-        "EntHomeAccessBoundary",
     ):
         template.has_resource_properties(
             "AWS::IAM::ManagedPolicy",
             {"ManagedPolicyName": name},
         )
-
-
-def test_boundary_policy_not_attached_to_role():
-    template = _template()
-    # The boundary policy caps roles the deploy role creates -- it must not be
-    # attached to the deploy role itself, or it would strip the deploy role's
-    # own iam:*/sts:AssumeRole grants.
-    (role,) = template.find_resources("AWS::IAM::Role").values()
-    assert len(role["Properties"]["ManagedPolicyArns"]) == 4
 
 
 def test_creates_role_with_default_name():
@@ -88,8 +79,7 @@ def test_boundary_guard_attached_when_enabled():
     template = _template(
         permissions_boundary_arn="arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary",
     )
-    # Four functional + Ent's default boundary + the guard; only the boundary stays unattached.
-    template.resource_count_is("AWS::IAM::ManagedPolicy", 6)
+    template.resource_count_is("AWS::IAM::ManagedPolicy", 5)
     (role,) = template.find_resources("AWS::IAM::Role").values()
     assert len(role["Properties"]["ManagedPolicyArns"]) == 5
 
@@ -100,3 +90,8 @@ def test_boundary_guard_attached_when_enabled():
     ]
     assert "arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary" in guard
     assert "<" not in guard, "a placeholder was left unsubstituted"
+
+
+def test_rejects_non_policy_boundary_arn():
+    with pytest.raises(ValueError):
+        _template(permissions_boundary_arn="arn:aws:iam::123456789012:role/NotAPolicy")

@@ -478,96 +478,6 @@ resource "aws_iam_policy" "this" {
   tags = var.tags
 }
 
-# Ent's default permissions boundary: an ARN a customer without its own boundary can pass as
-# var.permissions_boundary_arn to switch on the boundary guard below. NOT attached to the deploy role
-# itself -- it would strip the deploy role's own iam:*/sts:AssumeRole grants on the glob, breaking
-# it. When referenced, it caps the effective permissions of every role the deploy role creates under
-# role/e???????????????-*, regardless of what policy gets attached to it.
-#
-# BoundaryBaseline is deliberately NOT "Allow *": that would let a role created under the glob,
-# with (say) AdministratorAccess attached, exercise the full AWS surface -- Lambda, Organizations,
-# every other account's resources -- once capped only by "deny iam/sts". Instead it allow-lists the
-# exact same service actions the four functional policies above already grant (everything except
-# iam:*/sts:*, which stay hard-denied below), so a created role can never gain more service-level
-# reach than the deploy role itself already has. Keep this action list in lockstep with
-# local.all_statements above.
-#
-# Named outside the e???????????????-* glob (EntHomeAccessBoundary, not e???????????????-*) so the
-# IAMAccess statement's own iam:* grant -- scoped to that glob -- can't modify or delete it.
-#
-# path is hardcoded to "/" (not var.policy_path), matching every other IaC variant (CFN, CDK,
-# Pulumi), so its ARN is always arn:${partition}:iam::<account>:policy/${var.policy_name}Boundary.
-#
-# No partition templating needed: none of the actions/resources below carry ARNs.
-resource "aws_iam_policy" "boundary" {
-  name        = "${var.policy_name}Boundary"
-  description = "Ent default permissions boundary for IAM roles the deploy role creates under the e???????????????-* glob. Not attached to the deploy role itself -- enforced only when its ARN is passed as permissions_boundary_arn."
-  path        = "/"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "BoundaryBaseline"
-        Effect = "Allow"
-        Action = [
-          "acm:*",
-          "athena:*",
-          "bcm-data-exports:*",
-          "bedrock:*",
-          "cloudwatch:*",
-          "cur:Describe*",
-          "cur:Get*",
-          "cur:PutReportDefinition",
-          "ec2:*",
-          "ecr:*",
-          "eks:*",
-          "elasticache:*",
-          "elasticfilesystem:*",
-          "elasticloadbalancing:*",
-          "glue:*",
-          "kms:*",
-          "logs:*",
-          "rds:*",
-          "rds-db:*",
-          "resource-groups:*",
-          "route53:*",
-          "s3:*",
-          "secretsmanager:*",
-          "servicequotas:GetAWSDefaultServiceQuota",
-          "servicequotas:GetServiceQuota",
-          "servicequotas:ListRequestedServiceQuotaChangeHistoryByQuota",
-          "servicequotas:ListServiceQuotas",
-          "servicequotas:RequestServiceQuotaIncrease",
-          "sns:*",
-          "sqs:*",
-          "tag:*",
-          "wafv2:*",
-        ]
-        Resource = "*"
-      },
-      {
-        Sid      = "BoundaryDenyIAM"
-        Effect   = "Deny"
-        Action   = "iam:*"
-        Resource = "*"
-      },
-      {
-        Sid    = "BoundaryDenySTSAssumeRole"
-        Effect = "Deny"
-        Action = [
-          "sts:AssumeRole",
-          "sts:AssumeRoleWithWebIdentity",
-          "sts:TagSession",
-        ]
-        Resource = "*"
-      },
-    ]
-  })
-
-  tags = var.tags
-}
-
 # -------------------------------------------------------------------------------------------------
 # Opt-in privilege-escalation guard (PLA-6063).
 #
@@ -604,8 +514,9 @@ resource "aws_iam_policy" "boundary_guard" {
       {
         # CreateRole: a new role must carry the boundary. PutRolePermissionsBoundary: the boundary can
         # only ever be set TO this ARN (so existing unbounded roles can be moved onto it, never off it).
-        # PutRolePolicy/AttachRolePolicy: no permissions can be added to a role that lacks it, which
-        # closes the same escalation through roles created before the guard was switched on.
+        # PutRolePolicy/AttachRolePolicy: no permissions can be added to a role that lacks it. This
+        # does NOT cover roles created before the guard (CreatePolicyVersion on an attached e...- policy,
+        # UpdateAssumeRolePolicy): every existing e...- role must carry the boundary before turning it on.
         Sid      = "IAMBoundaryEnforcement"
         Effect   = "Deny"
         Action   = ["iam:AttachRolePolicy", "iam:CreateRole", "iam:PutRolePermissionsBoundary", "iam:PutRolePolicy"]

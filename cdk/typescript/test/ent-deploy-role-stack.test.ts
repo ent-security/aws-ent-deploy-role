@@ -12,16 +12,15 @@ describe('EntDeployRoleStack', () => {
     return Template.fromStack(stack);
   };
 
-  test('creates the four functional managed policies plus the boundary policy', () => {
+  test('creates the four functional managed policies', () => {
     const template = makeTemplate();
-    // Four functional managed policies (all attached to the role) plus the boundary policy.
-    template.resourceCountIs('AWS::IAM::ManagedPolicy', 5);
+    // The permission set is split across four functional managed policies, all attached to the role.
+    template.resourceCountIs('AWS::IAM::ManagedPolicy', 4);
     for (const name of [
       'EntHomeAccessCompute',
       'EntHomeAccessData',
       'EntHomeAccessSecurity',
       'EntHomeAccessPlatform',
-      'EntHomeAccessBoundary',
     ]) {
       template.hasResourceProperties('AWS::IAM::ManagedPolicy', {
         ManagedPolicyName: name,
@@ -29,19 +28,13 @@ describe('EntDeployRoleStack', () => {
     }
   });
 
-  test('attaches only the four functional managed policies to the role', () => {
+  test('attaches all four managed policies to the role', () => {
     const template = makeTemplate();
-    const policies = template.findResources('AWS::IAM::ManagedPolicy', {
-      Properties: Match.objectLike({ ManagedPolicyName: Match.not('EntHomeAccessBoundary') }),
-    });
+    const policies = template.findResources('AWS::IAM::ManagedPolicy');
     const policyRefs = Object.keys(policies).map((logicalId) => ({ Ref: logicalId }));
-    expect(policyRefs).toHaveLength(4);
     template.hasResourceProperties('AWS::IAM::Role', {
       ManagedPolicyArns: Match.arrayWith(policyRefs),
     });
-    const role = template.findResources('AWS::IAM::Role');
-    const [roleProps] = Object.values(role).map((r: any) => r.Properties);
-    expect(roleProps.ManagedPolicyArns).toHaveLength(4);
   });
 
   test('creates a role with the default name HomeProdAssumeAdmin', () => {
@@ -87,8 +80,7 @@ describe('EntDeployRoleStack', () => {
       permissionsBoundaryArn: 'arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary',
     });
     const template = Template.fromStack(stack);
-    // Four functional + Ent's default boundary + the guard; only the boundary stays unattached.
-    template.resourceCountIs('AWS::IAM::ManagedPolicy', 6);
+    template.resourceCountIs('AWS::IAM::ManagedPolicy', 5);
     const [roleProps] = Object.values(template.findResources('AWS::IAM::Role')).map((r: any) => r.Properties);
     expect(roleProps.ManagedPolicyArns).toHaveLength(5);
     const guardDoc = Object.values(template.findResources('AWS::IAM::ManagedPolicy'))
@@ -97,5 +89,16 @@ describe('EntDeployRoleStack', () => {
       .join('');
     expect(guardDoc).toContain('arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary');
     expect(guardDoc).not.toContain('<');
+  });
+
+  test('rejects a boundary ARN that is not a policy', () => {
+    const app = new cdk.App();
+    expect(
+      () =>
+        new EntDeployRoleStack(app, 'BadStack', {
+          entAwsAccountArn: 'arn:aws:iam::123456789012:root',
+          permissionsBoundaryArn: 'arn:aws:iam::123456789012:role/NotAPolicy',
+        }),
+    ).toThrow(/IAM policy ARN/);
   });
 });

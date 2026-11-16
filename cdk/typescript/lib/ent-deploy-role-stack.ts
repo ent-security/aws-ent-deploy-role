@@ -14,6 +14,9 @@ export interface EntDeployRoleStackProps extends cdk.StackProps {
   readonly permissionsBoundaryArn?: string;
 }
 
+// Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+const BOUNDARY_ARN_RE = /^arn:aws[a-z-]*:iam::[0-9]{12}:policy\/.+$/;
+
 const DEFAULTS = {
   entAwsAccountArn: 'arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005',
   roleName: 'HomeProdAssumeAdmin',
@@ -45,7 +48,6 @@ export class EntDeployRoleStack extends cdk.Stack {
   public readonly policyArns: string[];
   /** @deprecated The full permission set spans four policies — use policyArns. Points at EntHomeAccessSecurity. */
   public readonly policyArn: string;
-  public readonly boundaryPolicyArn: string;
 
   constructor(scope: Construct, id: string, props: EntDeployRoleStackProps = {}) {
     super(scope, id, props);
@@ -72,23 +74,13 @@ export class EntDeployRoleStack extends cdk.Stack {
       });
     });
 
-    // Ent's default permissions boundary: pass its ARN as permissionsBoundaryArn to enforce it.
-    // NOT attached to the deploy role itself below -- it would strip the deploy role's own
-    // iam:*/sts:AssumeRole grants on the glob, breaking it. No partition rewrite needed: its
-    // Action/Resource entries carry no ARNs.
-    const boundaryJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary.json'), 'utf-8'));
-    const boundaryPolicy = new iam.CfnManagedPolicy(this, 'EntHomeAccessBoundaryPolicy', {
-      managedPolicyName: `${DEFAULTS.policyNamePrefix}Boundary`,
-      description:
-        'Permissions boundary for IAM roles created by the deploy role under role/e???????????????-*. Not attached to the deploy role itself.',
-      path: '/',
-      policyDocument: boundaryJson,
-    });
-
     // Opt-in privilege-escalation guard (PLA-6063), its own managed policy built from
     // EntHomeAccess.boundary-guard.json. Off unless permissionsBoundaryArn is set. Every role
     // ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
     // sends the same boundary ARN for the tenant. See the README.
+    if (props.permissionsBoundaryArn && !BOUNDARY_ARN_RE.test(props.permissionsBoundaryArn)) {
+      throw new Error(`permissionsBoundaryArn must be an IAM policy ARN, got '${props.permissionsBoundaryArn}'`);
+    }
     const guards = props.permissionsBoundaryArn
       ? [
           new iam.CfnManagedPolicy(this, 'EntHomeAccessBoundaryGuardPolicy', {
@@ -121,18 +113,17 @@ export class EntDeployRoleStack extends cdk.Stack {
 
     this.roleArn = role.attrArn;
     this.roleName = role.ref;
-    this.policyArns = managedPolicies.map((p) => p.ref);
+    // Every policy attached to the role: the four functional ones, then the guard when on.
+    this.policyArns = [...managedPolicies, ...guards].map((p) => p.ref);
     // Backward-compat single ARN: EntHomeAccessSecurity. Deprecated — use policyArns.
     this.policyArn = managedPolicies[COMPAT_POLICY_INDEX].ref;
-    this.boundaryPolicyArn = boundaryPolicy.ref;
 
     new cdk.CfnOutput(this, 'RoleArn', { value: this.roleArn });
     new cdk.CfnOutput(this, 'RoleName', { value: this.roleName });
-    this.policyArns.forEach((arn, i) =>
-      new cdk.CfnOutput(this, `PolicyArn${POLICY_FILES[i][1]}`, { value: arn }),
+    managedPolicies.forEach((p, i) =>
+      new cdk.CfnOutput(this, `PolicyArn${POLICY_FILES[i][1]}`, { value: p.ref }),
     );
     // Deprecated compat output, retained so existing references keep resolving.
     new cdk.CfnOutput(this, 'PolicyArn', { value: this.policyArn });
-    new cdk.CfnOutput(this, 'PolicyArnBoundary', { value: this.boundaryPolicyArn });
   }
 }

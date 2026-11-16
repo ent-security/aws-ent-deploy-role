@@ -29,7 +29,7 @@ variable "tags" {
 }
 
 variable "permissions_boundary_arn" {
-  description = "Opt-in. ARN of the permissions boundary every role the deploy role creates under role/e???????????????-* must carry. When set, adds the <policy_name>BoundaryGuard policy: CreateRole/PutRolePolicy/AttachRolePolicy are denied on roles without this boundary, and it cannot be removed, swapped or edited. Pass your own policy, or this module's boundary_policy_arn output. Empty (default) adds nothing. Turn it on only after Ent Home sends the same ARN for the tenant (its iamPermissionsBoundaryArn), or that tenant's deploys are denied."
+  description = "Opt-in. ARN of the permissions boundary every role the deploy role creates under role/e???????????????-* must carry. When set, adds the <policy_name>BoundaryGuard policy: CreateRole/PutRolePolicy/AttachRolePolicy are denied on roles without this boundary, and it cannot be removed, swapped or edited. The boundary must cap resources as well as actions: every role created under the glob, and the deploy role through them, can reach whatever it allows. Empty (default) adds nothing. Turn it on only after Ent Home sends the same ARN for the tenant (its iamPermissionsBoundaryArn), or that tenant's deploys are denied."
   type        = string
   default     = ""
 
