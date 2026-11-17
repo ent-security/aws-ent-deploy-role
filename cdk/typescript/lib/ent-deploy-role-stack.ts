@@ -74,7 +74,7 @@ export class EntDeployRoleStack extends cdk.Stack {
       });
     });
 
-    // Opt-in privilege-escalation guard (PLA-6063), its own managed policy built from
+    // Opt-in privilege-escalation guard, its own managed policy built from
     // EntHomeAccess.boundary-guard.json. Off unless permissionsBoundaryArn is set. Every role
     // ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
     // sends the same boundary ARN for the tenant. See the README.

@@ -479,7 +479,7 @@ resource "aws_iam_policy" "this" {
 }
 
 # -------------------------------------------------------------------------------------------------
-# Opt-in privilege-escalation guard (PLA-6063).
+# Opt-in privilege-escalation guard.
 #
 # IAMAccess grants iam:* on role/e???????????????-* and STSAssumeRoleAccess grants sts:AssumeRole on
 # the same glob. IAM authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE, not the

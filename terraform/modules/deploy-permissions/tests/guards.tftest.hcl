@@ -1,4 +1,4 @@
-# Opt-in privilege-escalation guard (PLA-6063). Proves:
+# Opt-in privilege-escalation guard. Proves:
 #   - off by default: no guard policy, so existing installs and the StackSet rollout see no change;
 #   - the guard renders exactly EntHomeAccess.boundary-guard.json (the source the CDK and
 #     Pulumi variants read), so the variants can't drift apart;

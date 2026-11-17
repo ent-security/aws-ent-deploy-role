@@ -398,7 +398,7 @@ Resources:
               - servicequotas:ListServiceQuotas
             Resource: '*'
 
-  # Opt-in privilege-escalation guard (PLA-6063). IAMAccess grants iam:* on role/e???????????????-*
+  # Opt-in privilege-escalation guard. IAMAccess grants iam:* on role/e???????????????-*
   # and STSAssumeRoleAccess grants sts:AssumeRole on the same glob, so without the guard the deploy
   # role can create a role under the glob, give it "*:*" inline, and assume it. Off by default. Every
   # role ent-platform creates is named e<hash15>-..., so turn it on only once Ent Home sends the same

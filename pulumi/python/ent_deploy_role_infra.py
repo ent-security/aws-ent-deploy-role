@@ -59,7 +59,7 @@ for _filename, _suffix in POLICY_FILES:
     )
 
 def boundary_guard_policy(partition, boundary_arn):
-    """Opt-in privilege-escalation guard (PLA-6063): the BoundaryGuard policy JSON rendered from
+    """Opt-in privilege-escalation guard: the BoundaryGuard policy JSON rendered from
     EntHomeAccess.boundary-guard.json, or None when boundary_arn is empty. Every role ent-platform
     creates falls under the e???????????????-* glob, so turn it on only once Ent Home sends the same
     boundary ARN for the tenant. See the README."""

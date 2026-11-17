@@ -62,7 +62,7 @@ func readRepoFile(name string) (string, error) {
 	return string(data), nil
 }
 
-// boundaryGuardPolicy renders the opt-in privilege-escalation guard (PLA-6063) from
+// boundaryGuardPolicy renders the opt-in privilege-escalation guard from
 // EntHomeAccess.boundary-guard.json, or returns "" when boundaryArn is empty. Every role
 // ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
 // sends the same boundary ARN for the tenant. See the README.
