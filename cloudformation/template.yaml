@@ -119,6 +119,16 @@ Resources:
             Resource:
               - !Sub 'arn:${AWS::Partition}:athena:*:*:workgroup/e???????????????-*'
               - !Sub 'arn:${AWS::Partition}:athena:*:*:datacatalog/e???????????????-*'
+          - Sid: BackupReadAccess
+            Effect: Allow
+            Action:
+              - backup:ListBackupVaults
+            Resource: '*'
+          - Sid: BackupServiceVaultReadAccess
+            Effect: Allow
+            Action:
+              - backup:ListRecoveryPointsByBackupVault
+            Resource: !Sub 'arn:${AWS::Partition}:backup:*:*:backup-vault:aws/*'
           - Sid: EFSAccess
             Effect: Allow
             Action:

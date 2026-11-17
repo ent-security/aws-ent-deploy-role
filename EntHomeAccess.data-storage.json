@@ -13,6 +13,22 @@
             ]
         },
         {
+            "Sid": "BackupReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "backup:ListBackupVaults"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "BackupServiceVaultReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "backup:ListRecoveryPointsByBackupVault"
+            ],
+            "Resource": "arn:aws:backup:*:*:backup-vault:aws/*"
+        },
+        {
             "Sid": "EFSAccess",
             "Effect": "Allow",
             "Action": [
