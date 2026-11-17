@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.6](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.5...v1.0.6) (2026-11-17)
+
+
+### Bug Fixes
+
+* grant deploy role AWS Backup read access so the decommission residue check can skip service-managed backups ([#39](https://github.com/ent-security/aws-ent-deploy-role/issues/39)) ([39b104b](https://github.com/ent-security/aws-ent-deploy-role/commit/39b104bc56b14a6672e390b92aa60a69f64e7405))
+* opt-in permissions-boundary guard for deploy role privesc gap (PLA-6063) ([#27](https://github.com/ent-security/aws-ent-deploy-role/issues/27)) ([73c202d](https://github.com/ent-security/aws-ent-deploy-role/commit/73c202da09efd0205f6e20ad66188caee9fba3c3))
+
 ## [1.0.5](https://github.com/ent-security/aws-ent-deploy-role/compare/v1.0.4...v1.0.5) (2026-11-13)
 
 
