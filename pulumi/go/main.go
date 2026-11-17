@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws"
@@ -14,6 +16,16 @@ import (
 type deployed struct {
 	Policies []*iam.Policy
 	Role     *iam.Role
+	Guards   []*iam.Policy
+}
+
+// policyArns lists every policy attached to the role: the four functional ones, then the guard when on.
+func (d *deployed) policyArns() pulumi.StringArray {
+	arns := make(pulumi.StringArray, 0, len(d.Policies)+len(d.Guards))
+	for _, p := range append(append([]*iam.Policy{}, d.Policies...), d.Guards...) {
+		arns = append(arns, p.Arn)
+	}
+	return arns
 }
 
 const (
@@ -59,6 +71,28 @@ func readRepoFile(name string) (string, error) {
 	return string(data), nil
 }
 
+// boundaryGuardPolicy renders the opt-in privilege-escalation guard from
+// EntHomeAccess.boundary-guard.json, or returns "" when boundaryArn is empty. Every role
+// ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
+// sends the same boundary ARN for the tenant. See the README.
+// Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+var boundaryArnRe = regexp.MustCompile(`^arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+$`)
+
+func boundaryGuardPolicy(partition, boundaryArn string) (string, error) {
+	if boundaryArn == "" {
+		return "", nil
+	}
+	if !boundaryArnRe.MatchString(boundaryArn) {
+		return "", fmt.Errorf("permissionsBoundaryArn must be an IAM policy ARN, got %q", boundaryArn)
+	}
+	raw, err := readRepoFile("EntHomeAccess.boundary-guard.json")
+	if err != nil {
+		return "", err
+	}
+	raw = strings.ReplaceAll(raw, "arn:aws:", "arn:"+partition+":")
+	return strings.ReplaceAll(raw, "<PERMISSIONS_BOUNDARY_ARN>", boundaryArn), nil
+}
+
 func deploy(
 	ctx *pulumi.Context,
 	entAwsAccountArn string,
@@ -66,6 +100,7 @@ func deploy(
 	rolePath string,
 	roleDescription string,
 	tags map[string]string,
+	permissionsBoundaryArn string,
 ) (*deployed, error) {
 	// The functional policy files hold the canonical (commercial) `arn:aws:` ARNs. Rewrite the
 	// partition to the one we're deploying into so the policies work in commercial and GovCloud
@@ -92,6 +127,24 @@ func deploy(
 			return nil, err
 		}
 		policies = append(policies, policy)
+	}
+
+	guardJSON, err := boundaryGuardPolicy(part.Partition, permissionsBoundaryArn)
+	if err != nil {
+		return nil, err
+	}
+	guards := []*iam.Policy{}
+	if guardJSON != "" {
+		guard, err := iam.NewPolicy(ctx, "EntHomeAccessBoundaryGuard", &iam.PolicyArgs{
+			Name:        pulumi.String(policyNamePrefix + "BoundaryGuard"),
+			Description: pulumi.String(policyDescription),
+			Path:        pulumi.String("/"),
+			Policy:      pulumi.String(guardJSON),
+		})
+		if err != nil {
+			return nil, err
+		}
+		guards = append(guards, guard)
 	}
 
 	trustRaw, err := readRepoFile("role.json")
@@ -127,7 +180,17 @@ func deploy(
 		}
 	}
 
-	return &deployed{Policies: policies, Role: role}, nil
+	for _, guard := range guards {
+		_, err = iam.NewRolePolicyAttachment(ctx, "EntDeployRoleAttachmentBoundaryGuard", &iam.RolePolicyAttachmentArgs{
+			Role:      role.Name,
+			PolicyArn: guard.Arn,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &deployed{Policies: policies, Role: role, Guards: guards}, nil
 }
 
 func main() {
@@ -153,7 +216,8 @@ func main() {
 		tags := map[string]string{}
 		_ = cfg.TryObject("tags", &tags)
 
-		result, err := deploy(ctx, entAwsAccountArn, roleName, rolePath, roleDescription, tags)
+		result, err := deploy(ctx, entAwsAccountArn, roleName, rolePath, roleDescription, tags,
+			cfg.Get("permissionsBoundaryArn"))
 		if err != nil {
 			return err
 		}
@@ -161,11 +225,7 @@ func main() {
 		ctx.Export("roleArn", result.Role.Arn)
 		ctx.Export("roleName", result.Role.Name)
 
-		policyArns := make(pulumi.StringArray, 0, len(result.Policies))
-		for _, p := range result.Policies {
-			policyArns = append(policyArns, p.Arn)
-		}
-		ctx.Export("policyArns", policyArns.ToStringArrayOutput())
+		ctx.Export("policyArns", result.policyArns().ToStringArrayOutput())
 
 		// Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
 		for i, pf := range policyFiles {

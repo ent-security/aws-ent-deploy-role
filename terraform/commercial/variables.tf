@@ -33,3 +33,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "permissions_boundary_arn" {
+  description = "Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role creates under role/e???????????????-* must carry. Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on your tenant, or deploys are denied. See README: IAM privilege-escalation guard."
+  type        = string
+  default     = ""
+}

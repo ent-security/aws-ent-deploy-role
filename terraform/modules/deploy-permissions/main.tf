@@ -477,3 +477,68 @@ resource "aws_iam_policy" "this" {
 
   tags = var.tags
 }
+
+# -------------------------------------------------------------------------------------------------
+# Opt-in privilege-escalation guard.
+#
+# IAMAccess grants iam:* on role/e???????????????-* and STSAssumeRoleAccess grants sts:AssumeRole on
+# the same glob. IAM authorizes CreateRole/PutRolePolicy/AttachRolePolicy against the ROLE, not the
+# policy document, so with neither guard on the deploy role can create a role under the glob, give
+# it "*:*" inline, and assume it.
+#
+# Off by default (empty permissions_boundary_arn -> no policy, no plan diff). Every role ent-platform
+# creates is named e<hash15>-..., so it falls under the glob: turn the guard on only once Home sends
+# the same boundary ARN for the tenant, or that tenant's deploys are denied.
+#
+# The guard is its own managed policy (not statements in the four functional policies) so those stay
+# byte-identical to their EntHomeAccess.<domain>.json files. It is named outside the glob, so
+# IAMAccess cannot edit or delete it, and the deploy role has no IAM permission on itself, so it
+# cannot detach it. Statements mirror EntHomeAccess.boundary-guard.json; tests/guards.tftest.hcl
+# keeps them in lockstep.
+# -------------------------------------------------------------------------------------------------
+
+locals {
+  guard_role_glob = "arn:${local.partition}:iam::*:role/e???????????????-*"
+}
+
+resource "aws_iam_policy" "boundary_guard" {
+  count = var.permissions_boundary_arn == "" ? 0 : 1
+
+  name        = "${var.policy_name}BoundaryGuard"
+  description = "Requires the customer's permissions boundary on every role the Ent deploy role creates or grants permissions to under role/e???????????????-*, and keeps it from being removed or edited."
+  path        = var.policy_path
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # CreateRole: a new role must carry the boundary. PutRolePermissionsBoundary: the boundary can
+        # only ever be set TO this ARN (so existing unbounded roles can be moved onto it, never off it).
+        # PutRolePolicy/AttachRolePolicy: no permissions can be added to a role that lacks it. This
+        # does NOT cover roles created before the guard (CreatePolicyVersion on an attached e...- policy,
+        # UpdateAssumeRolePolicy): every existing e...- role must carry the boundary before turning it on.
+        Sid      = "IAMBoundaryEnforcement"
+        Effect   = "Deny"
+        Action   = ["iam:AttachRolePolicy", "iam:CreateRole", "iam:PutRolePermissionsBoundary", "iam:PutRolePolicy"]
+        Resource = local.guard_role_glob
+        Condition = {
+          StringNotEquals = { "iam:PermissionsBoundary" = var.permissions_boundary_arn }
+        }
+      },
+      {
+        Sid      = "IAMBoundaryRemovalProtection"
+        Effect   = "Deny"
+        Action   = "iam:DeleteRolePermissionsBoundary"
+        Resource = local.guard_role_glob
+      },
+      {
+        Sid      = "IAMBoundaryPolicyProtection"
+        Effect   = "Deny"
+        Action   = ["iam:CreatePolicyVersion", "iam:DeletePolicy", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion"]
+        Resource = var.permissions_boundary_arn
+      },
+    ]
+  })
+
+  tags = var.tags
+}

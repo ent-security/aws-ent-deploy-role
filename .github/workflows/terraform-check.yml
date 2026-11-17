@@ -13,6 +13,8 @@ on:
       # them re-runs the guards.
       - 'EntHomeAccess*.json'
       - 'scripts/check-policy-size.sh'
+      - 'scripts/check-cfn-guard.py'
+      - 'cloudformation/**'
       - '.github/workflows/terraform-check.yml'
   push:
     branches: [main]
@@ -20,6 +22,8 @@ on:
       - 'terraform/**'
       - 'EntHomeAccess*.json'
       - 'scripts/check-policy-size.sh'
+      - 'scripts/check-cfn-guard.py'
+      - 'cloudformation/**'
       - '.github/workflows/terraform-check.yml'
 
 permissions:
@@ -53,6 +57,15 @@ jobs:
         run: |
           tofu -chdir=terraform/modules/deploy-permissions init -backend=false
           tofu -chdir=terraform/modules/deploy-permissions test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: CloudFormation guard — both templates' BoundaryGuard matches EntHomeAccess.boundary-guard.json
+        run: |
+          pip install --quiet pyyaml
+          scripts/check-cfn-guard.py
 
       - name: Trust-policy guard — sts:TagSession never gated by sts:ExternalId
         run: |

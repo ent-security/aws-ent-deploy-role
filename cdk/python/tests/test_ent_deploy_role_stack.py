@@ -1,6 +1,7 @@
 import json
 
 import aws_cdk as cdk
+import pytest
 from aws_cdk import assertions
 
 from ent_deploy_role.ent_deploy_role_stack import EntDeployRoleStack
@@ -72,3 +73,25 @@ def test_parameterizes_arns_by_partition():
     # pseudo-param rather than hardcoding the commercial `aws` partition.
     assert "AWS::Partition" in template_json
     assert "arn:aws:athena" not in template_json
+
+
+def test_boundary_guard_attached_when_enabled():
+    template = _template(
+        permissions_boundary_arn="arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary",
+    )
+    template.resource_count_is("AWS::IAM::ManagedPolicy", 5)
+    (role,) = template.find_resources("AWS::IAM::Role").values()
+    assert len(role["Properties"]["ManagedPolicyArns"]) == 5
+
+    (guard,) = [
+        json.dumps(p["Properties"]["PolicyDocument"])
+        for p in template.find_resources("AWS::IAM::ManagedPolicy").values()
+        if p["Properties"]["ManagedPolicyName"] == "EntHomeAccessBoundaryGuard"
+    ]
+    assert "arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary" in guard
+    assert "<" not in guard, "a placeholder was left unsubstituted"
+
+
+def test_rejects_non_policy_boundary_arn():
+    with pytest.raises(ValueError):
+        _template(permissions_boundary_arn="arn:aws:iam::123456789012:role/NotAPolicy")

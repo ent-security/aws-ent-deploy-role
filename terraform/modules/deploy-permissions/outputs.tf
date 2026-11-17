@@ -1,9 +1,13 @@
-# The real output: ARNs of all four functional managed policies. Trust modules attach every entry.
-# Sorted by map key for a stable order (compute-network, data-storage, identity-security,
-# observability-platform).
+# The real output: ARNs of every managed policy the deploy role needs. Trust modules attach every
+# entry. The four functional policies come first, sorted by map key (compute-network, data-storage,
+# identity-security, observability-platform), then the opt-in BoundaryGuard when on. It goes last
+# so switching it on never shifts the index-keyed attachments of the four.
 output "policy_arns" {
-  value       = [for k in sort(keys(aws_iam_policy.this)) : aws_iam_policy.this[k].arn]
-  description = "ARNs of the four functional permission policies (Compute, Data, Security, Platform). Attach all four to the deploy role."
+  value = concat(
+    [for k in sort(keys(aws_iam_policy.this)) : aws_iam_policy.this[k].arn],
+    aws_iam_policy.boundary_guard[*].arn,
+  )
+  description = "ARNs of the four functional permission policies (Compute, Data, Security, Platform), followed by the BoundaryGuard policy when permissions_boundary_arn is set. Attach every entry to the deploy role."
 }
 
 # Backward-compat single ARN. The pre-split module exposed one policy_arn; consumers and the
@@ -25,4 +29,11 @@ output "policy_names" {
 output "policy_json_by_group" {
   value       = { for k, p in aws_iam_policy.this : k => p.policy }
   description = "Map of functional domain -> rendered policy JSON. Used by the zero-diff test to assert each rendered policy matches its per-domain file."
+}
+
+# Rendered guard policy JSON (null when the guard is off). Used by tests/guards.tftest.hcl to assert
+# it matches EntHomeAccess.boundary-guard.json.
+output "boundary_guard_policy_json" {
+  value       = one(aws_iam_policy.boundary_guard[*].policy)
+  description = "Rendered JSON of the BoundaryGuard policy, or null when permissions_boundary_arn is empty."
 }

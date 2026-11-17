@@ -72,4 +72,33 @@ describe('EntDeployRoleStack', () => {
     expect(json).toContain('AWS::Partition');
     expect(json).not.toContain('arn:aws:athena');
   });
+
+  test('attaches the boundary guard only when enabled', () => {
+    const app = new cdk.App();
+    const stack = new EntDeployRoleStack(app, 'GuardStack', {
+      entAwsAccountArn: 'arn:aws:iam::123456789012:root',
+      permissionsBoundaryArn: 'arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary',
+    });
+    const template = Template.fromStack(stack);
+    template.resourceCountIs('AWS::IAM::ManagedPolicy', 5);
+    const [roleProps] = Object.values(template.findResources('AWS::IAM::Role')).map((r: any) => r.Properties);
+    expect(roleProps.ManagedPolicyArns).toHaveLength(5);
+    const guardDoc = Object.values(template.findResources('AWS::IAM::ManagedPolicy'))
+      .filter((p: any) => p.Properties.ManagedPolicyName === 'EntHomeAccessBoundaryGuard')
+      .map((p: any) => JSON.stringify(p.Properties.PolicyDocument))
+      .join('');
+    expect(guardDoc).toContain('arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary');
+    expect(guardDoc).not.toContain('<');
+  });
+
+  test('rejects a boundary ARN that is not a policy', () => {
+    const app = new cdk.App();
+    expect(
+      () =>
+        new EntDeployRoleStack(app, 'BadStack', {
+          entAwsAccountArn: 'arn:aws:iam::123456789012:root',
+          permissionsBoundaryArn: 'arn:aws:iam::123456789012:role/NotAPolicy',
+        }),
+    ).toThrow(/IAM policy ARN/);
+  });
 });

@@ -23,6 +23,8 @@ module "deploy_permissions" {
     "CostAndUsageReportAccess",
     "BCMDataExportsAccess",
   ]
+
+  permissions_boundary_arn = var.permissions_boundary_arn
 }
 
 module "govcloud_rolesanywhere" {

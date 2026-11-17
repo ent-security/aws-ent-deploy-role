@@ -37,8 +37,20 @@ Parameters:
       if you need more than one deploy-role stack in the same AWS account, since
       IAM managed-policy names are account-global.
 
+  PermissionsBoundaryArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^(arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+)?$'
+    ConstraintDescription: Must be empty or an IAM policy ARN (arn:<partition>:iam::<account>:policy/<name>).
+    Description: >
+      Opt-in privilege-escalation guard. ARN of the permissions boundary every role the deploy role
+      creates under role/e???????????????-* must carry. It must cap resources as well as actions.
+      Empty (default) leaves the guard off. Set it only after Ent has set the same ARN on
+      your tenant, or deploys are denied.
+
 Conditions:
   HasExternalId: !Not [!Equals [!Ref RoleStsExternalId, '']]
+  HasBoundaryGuard: !Not [!Equals [!Ref PermissionsBoundaryArn, '']]
 
 Resources:
   EntDeployPolicyCompute:
@@ -358,6 +370,51 @@ Resources:
               - servicequotas:ListServiceQuotas
             Resource: '*'
 
+  # Opt-in privilege-escalation guard. IAMAccess grants iam:* on role/e???????????????-*
+  # and STSAssumeRoleAccess grants sts:AssumeRole on the same glob, so without the guard the deploy
+  # role can create a role under the glob, give it "*:*" inline, and assume it. Off by default. Every
+  # role ent-platform creates is named e<hash15>-..., so turn it on only once Ent Home sends the same
+  # boundary ARN for the tenant. Statements mirror EntHomeAccess.boundary-guard.json; keep them in
+  # lockstep. Named outside the glob, and EntDeployRole has no IAM permission on itself, so it can
+  # neither edit nor detach it.
+  EntDeployPolicyBoundaryGuard:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasBoundaryGuard
+    Properties:
+      ManagedPolicyName: !Sub '${PolicyNamePrefix}BoundaryGuard'
+      Description: Requires the customer's permissions boundary on every role the Ent deploy role creates or grants permissions to under role/e???????????????-*, and keeps it from being removed or edited.
+      Path: /
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # CreateRole: a new role must carry the boundary. PutRolePermissionsBoundary: the boundary
+          # can only ever be set TO this ARN. PutRolePolicy/AttachRolePolicy: no permissions can be
+          # added to a role that lacks it. Roles created before the guard are NOT covered: every
+          # existing e...- role must carry the boundary before turning it on (see README).
+          - Sid: IAMBoundaryEnforcement
+            Effect: Deny
+            Action:
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:PutRolePermissionsBoundary
+              - iam:PutRolePolicy
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
+            Condition:
+              StringNotEquals:
+                'iam:PermissionsBoundary': !Ref PermissionsBoundaryArn
+          - Sid: IAMBoundaryRemovalProtection
+            Effect: Deny
+            Action: iam:DeleteRolePermissionsBoundary
+            Resource: !Sub 'arn:${AWS::Partition}:iam::*:role/e???????????????-*'
+          - Sid: IAMBoundaryPolicyProtection
+            Effect: Deny
+            Action:
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicy
+              - iam:DeletePolicyVersion
+              - iam:SetDefaultPolicyVersion
+            Resource: !Ref PermissionsBoundaryArn
+
   EntDeployRole:
     Type: AWS::IAM::Role
     Properties:
@@ -398,6 +455,7 @@ Resources:
         - !Ref EntDeployPolicyData
         - !Ref EntDeployPolicySecurity
         - !Ref EntDeployPolicyPlatform
+        - !If [HasBoundaryGuard, !Ref EntDeployPolicyBoundaryGuard, !Ref AWS::NoValue]
 
 Outputs:
   RoleArn:

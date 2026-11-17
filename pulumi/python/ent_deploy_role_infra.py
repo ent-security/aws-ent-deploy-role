@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pulumi
@@ -13,6 +14,7 @@ role_description = (
     or "Role that allows Ent Home to assume AdministratorAccess role"
 )
 tags = config.get_object("tags") or {}
+permissions_boundary_arn = config.get("permissionsBoundaryArn") or ""
 
 POLICY_NAME_PREFIX = "EntHomeAccess"
 POLICY_DESCRIPTION = (
@@ -56,6 +58,39 @@ for _filename, _suffix in POLICY_FILES:
         policy=_policy_json,
     )
 
+def boundary_guard_policy(partition, boundary_arn):
+    """Opt-in privilege-escalation guard: the BoundaryGuard policy JSON rendered from
+    EntHomeAccess.boundary-guard.json, or None when boundary_arn is empty. Every role ent-platform
+    creates falls under the e???????????????-* glob, so turn it on only once Ent Home sends the same
+    boundary ARN for the tenant. See the README."""
+    if not boundary_arn:
+        return None
+    # Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+    if not re.fullmatch(r"arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+", boundary_arn):
+        raise ValueError(f"permissionsBoundaryArn must be an IAM policy ARN, got {boundary_arn!r}")
+    return (
+        (repo_root / "EntHomeAccess.boundary-guard.json")
+        .read_text()
+        .replace("arn:aws:", f"arn:{partition}:")
+        .replace("<PERMISSIONS_BOUNDARY_ARN>", boundary_arn)
+    )
+
+
+_guard_json = boundary_guard_policy(partition, permissions_boundary_arn)
+guards = (
+    {
+        "BoundaryGuard": aws.iam.Policy(
+            "EntHomeAccessBoundaryGuard",
+            name=f"{POLICY_NAME_PREFIX}BoundaryGuard",
+            description=POLICY_DESCRIPTION,
+            path="/",
+            policy=_guard_json,
+        )
+    }
+    if _guard_json
+    else {}
+)
+
 role = aws.iam.Role(
     "EntDeployRole",
     name=role_name,
@@ -66,15 +101,24 @@ role = aws.iam.Role(
 )
 
 # One attachment per functional policy.
+attachments = {}
 for _filename, _suffix in POLICY_FILES:
-    aws.iam.RolePolicyAttachment(
+    attachments[_suffix] = aws.iam.RolePolicyAttachment(
         f"EntDeployRoleAttachment{_suffix}",
         role=role.name,
         policy_arn=policies[_suffix].arn,
     )
+for _suffix, _guard in guards.items():
+    attachments[_suffix] = aws.iam.RolePolicyAttachment(
+        f"EntDeployRoleAttachment{_suffix}",
+        role=role.name,
+        policy_arn=_guard.arn,
+    )
 
 pulumi.export("roleArn", role.arn)
 pulumi.export("roleName", role.name)
-pulumi.export("policyArns", [policies[suffix].arn for _, suffix in POLICY_FILES])
+# Every policy attached to the role: the four functional ones, then the guard when on.
+policy_arns = [policies[suffix].arn for _, suffix in POLICY_FILES] + [g.arn for g in guards.values()]
+pulumi.export("policyArns", policy_arns)
 # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
 pulumi.export("policyArn", policies[COMPAT_POLICY_SUFFIX].arn)

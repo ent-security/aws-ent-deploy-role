@@ -71,6 +71,9 @@ resource "aws_iam_role" "deploy" {
 
   assume_role_policy = data.aws_iam_policy_document.ra_trust.json
 
+  # Deliberately no permissions_boundary here. The boundary named by deploy-permissions'
+  # permissions_boundary_arn caps the roles this role CREATES under role/e???????????????-*;
+  # applying one to this role would strip its own iam:*/sts:AssumeRole grants and break it.
   tags = var.tags
 }
 

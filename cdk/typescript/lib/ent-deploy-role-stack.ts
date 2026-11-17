@@ -10,7 +10,12 @@ export interface EntDeployRoleStackProps extends cdk.StackProps {
   readonly rolePath?: string;
   readonly roleDescription?: string;
   readonly entTags?: { [key: string]: string };
+  /** Opt-in. Permissions boundary every role created under role/e???????????????-* must carry. See the README. */
+  readonly permissionsBoundaryArn?: string;
 }
+
+// Same check as the Terraform variable's validation and the CloudFormation AllowedPattern.
+const BOUNDARY_ARN_RE = /^arn:aws[a-z-]*:iam::[0-9]{12}:policy\/.+$/;
 
 const DEFAULTS = {
   entAwsAccountArn: 'arn:aws:iam::051759900972:role/prod-uswest1-eks-pi-1-20251203221124633900000005',
@@ -69,6 +74,29 @@ export class EntDeployRoleStack extends cdk.Stack {
       });
     });
 
+    // Opt-in privilege-escalation guard, its own managed policy built from
+    // EntHomeAccess.boundary-guard.json. Off unless permissionsBoundaryArn is set. Every role
+    // ent-platform creates falls under the e???????????????-* glob, so turn it on only once Ent Home
+    // sends the same boundary ARN for the tenant. See the README.
+    if (props.permissionsBoundaryArn && !BOUNDARY_ARN_RE.test(props.permissionsBoundaryArn)) {
+      throw new Error(`permissionsBoundaryArn must be an IAM policy ARN, got '${props.permissionsBoundaryArn}'`);
+    }
+    const guards = props.permissionsBoundaryArn
+      ? [
+          new iam.CfnManagedPolicy(this, 'EntHomeAccessBoundaryGuardPolicy', {
+            managedPolicyName: `${DEFAULTS.policyNamePrefix}BoundaryGuard`,
+            description: DEFAULTS.policyDescription,
+            path: '/',
+            policyDocument: JSON.parse(
+              fs
+                .readFileSync(path.join(repoRoot, 'EntHomeAccess.boundary-guard.json'), 'utf-8')
+                .replaceAll('arn:aws:', `arn:${cdk.Aws.PARTITION}:`)
+                .replaceAll('<PERMISSIONS_BOUNDARY_ARN>', props.permissionsBoundaryArn),
+            ),
+          }),
+        ]
+      : [];
+
     const trustJsonRaw = fs.readFileSync(path.join(repoRoot, 'role.json'), 'utf-8');
     const trustJson = JSON.parse(trustJsonRaw.replaceAll('<ENT_AWS_ACCOUNT_ARN>', entAwsAccountArn));
 
@@ -77,7 +105,7 @@ export class EntDeployRoleStack extends cdk.Stack {
       path: rolePath,
       description: roleDescription,
       assumeRolePolicyDocument: trustJson,
-      managedPolicyArns: managedPolicies.map((p) => p.ref),
+      managedPolicyArns: [...managedPolicies, ...guards].map((p) => p.ref),
       tags: props.entTags
         ? Object.entries(props.entTags).map(([key, value]) => ({ key, value }))
         : undefined,
@@ -85,14 +113,15 @@ export class EntDeployRoleStack extends cdk.Stack {
 
     this.roleArn = role.attrArn;
     this.roleName = role.ref;
-    this.policyArns = managedPolicies.map((p) => p.ref);
+    // Every policy attached to the role: the four functional ones, then the guard when on.
+    this.policyArns = [...managedPolicies, ...guards].map((p) => p.ref);
     // Backward-compat single ARN: EntHomeAccessSecurity. Deprecated — use policyArns.
     this.policyArn = managedPolicies[COMPAT_POLICY_INDEX].ref;
 
     new cdk.CfnOutput(this, 'RoleArn', { value: this.roleArn });
     new cdk.CfnOutput(this, 'RoleName', { value: this.roleName });
-    this.policyArns.forEach((arn, i) =>
-      new cdk.CfnOutput(this, `PolicyArn${POLICY_FILES[i][1]}`, { value: arn }),
+    managedPolicies.forEach((p, i) =>
+      new cdk.CfnOutput(this, `PolicyArn${POLICY_FILES[i][1]}`, { value: p.ref }),
     );
     // Deprecated compat output, retained so existing references keep resolving.
     new cdk.CfnOutput(this, 'PolicyArn', { value: this.policyArn });

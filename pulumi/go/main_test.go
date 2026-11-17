@@ -35,7 +35,7 @@ func TestEntDeployRole(t *testing.T) {
 		cfgJSON, _ := json.Marshal(cfg)
 		ctx.Log.Debug("config: "+string(cfgJSON), nil)
 
-		resources, err := deploy(ctx, "arn:aws:iam::123456789012:root", "HomeProdAssumeAdmin", "/", "desc", map[string]string{})
+		resources, err := deploy(ctx, "arn:aws:iam::123456789012:root", "HomeProdAssumeAdmin", "/", "desc", map[string]string{}, "")
 		if err != nil {
 			return err
 		}
@@ -91,4 +91,89 @@ func TestEntDeployRole(t *testing.T) {
 	}, pulumi.WithMocks("project", "stack", mocks(0)))
 
 	assert.NoError(t, err)
+}
+
+// recordingMocks records the policy ARN of every RolePolicyAttachment registered, so tests can assert
+// what was actually attached rather than only what deploy returns.
+type recordingMocks struct {
+	mocks
+	mu       sync.Mutex
+	attached []string
+}
+
+func (m *recordingMocks) NewResource(args pulumi.MockResourceArgs) (string, resource.PropertyMap, error) {
+	if args.TypeToken == "aws:iam/rolePolicyAttachment:RolePolicyAttachment" {
+		m.mu.Lock()
+		m.attached = append(m.attached, args.Inputs["policyArn"].StringValue())
+		m.mu.Unlock()
+	}
+	return m.mocks.NewResource(args)
+}
+
+func TestBoundaryGuardOnCreatesAttachesAndLists(t *testing.T) {
+	const boundaryArn = "arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary"
+	m := &recordingMocks{}
+	var guardArn string
+	var functionalArns []string
+
+	err := pulumi.RunErr(func(ctx *pulumi.Context) error {
+		resources, err := deploy(ctx, "arn:aws:iam::123456789012:root", "HomeProdAssumeAdmin", "/", "desc", map[string]string{}, boundaryArn)
+		if err != nil {
+			return err
+		}
+		if !assert.Len(t, resources.Guards, 1) {
+			return nil
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		all := []interface{}{resources.Guards[0].Arn, resources.Guards[0].Policy, resources.policyArns().ToStringArrayOutput()}
+		for _, p := range resources.Policies {
+			all = append(all, p.Arn)
+		}
+		pulumi.All(all...).ApplyT(func(v []interface{}) error {
+			defer wg.Done()
+			guardArn = v[0].(string)
+			assert.Contains(t, v[1].(string), boundaryArn)
+			for _, a := range v[3:] {
+				functionalArns = append(functionalArns, a.(string))
+			}
+			assert.Equal(t, append(append([]string{}, functionalArns...), guardArn), v[2].([]string))
+			return nil
+		})
+		wg.Wait()
+		return nil
+	}, pulumi.WithMocks("project", "stack", m))
+	assert.NoError(t, err)
+
+	// RunErr returns once every resource has registered, so the recorded attachments are complete.
+	assert.ElementsMatch(t, append(functionalArns, guardArn), m.attached)
+}
+
+func TestBoundaryGuardOffByDefault(t *testing.T) {
+	guard, err := boundaryGuardPolicy("aws", "")
+	assert.NoError(t, err)
+	assert.Empty(t, guard)
+}
+
+func TestBoundaryGuardRendersFragment(t *testing.T) {
+	guard, err := boundaryGuardPolicy("aws-us-gov", "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary")
+	assert.NoError(t, err)
+
+	var doc struct {
+		Statement []struct {
+			Resource  interface{}
+			Condition map[string]map[string]string
+		}
+	}
+	assert.NoError(t, json.Unmarshal([]byte(guard), &doc))
+	assert.Equal(t, "arn:aws-us-gov:iam::*:role/e???????????????-*", doc.Statement[0].Resource)
+	assert.Equal(t, "arn:aws-us-gov:iam::123456789012:policy/CustomerWorkloadBoundary",
+		doc.Statement[0].Condition["StringNotEquals"]["iam:PermissionsBoundary"])
+	assert.NotContains(t, guard, "<")
+}
+
+func TestBoundaryGuardRejectsNonPolicyArn(t *testing.T) {
+	_, err := boundaryGuardPolicy("aws", "arn:aws:iam::123456789012:role/NotAPolicy")
+	assert.Error(t, err)
 }

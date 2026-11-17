@@ -12,4 +12,5 @@ new EntDeployRoleStack(app, 'EntDeployRoleStack', {
   rolePath: app.node.tryGetContext('role_path'),
   roleDescription: app.node.tryGetContext('role_description'),
   entTags: tagsCtx && typeof tagsCtx === 'object' ? tagsCtx : undefined,
+  permissionsBoundaryArn: app.node.tryGetContext('permissions_boundary_arn'),
 });
