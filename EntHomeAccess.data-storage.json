@@ -13,6 +13,15 @@
             ]
         },
         {
+            "Sid": "BackupReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "backup:ListBackupVaults",
+                "backup:ListRecoveryPointsByBackupVault"
+            ],
+            "Resource": "*"
+        },
+        {
             "Sid": "EFSAccess",
             "Effect": "Allow",
             "Action": [

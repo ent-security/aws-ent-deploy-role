@@ -43,6 +43,12 @@ locals {
       ]
     },
     {
+      Sid      = "BackupReadAccess"
+      Effect   = "Allow"
+      Action   = ["backup:ListBackupVaults", "backup:ListRecoveryPointsByBackupVault"]
+      Resource = "*"
+    },
+    {
       Sid    = "BedrockAccess"
       Effect = "Allow"
       Action = ["bedrock:*"]
@@ -414,6 +420,7 @@ locals {
     EFSAccess                        = "data-storage"
     ElastiCacheAccess                = "data-storage"
     AthenaAccess                     = "data-storage"
+    BackupReadAccess                 = "data-storage"
     GlueAccess                       = "data-storage"
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)

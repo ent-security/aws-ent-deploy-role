@@ -487,7 +487,7 @@ The full permission set exceeds AWS's **6144-character** single-managed-policy h
 | File | Managed policy | Domain | Statements |
 |------|----------------|--------|-----------|
 | `EntHomeAccess.compute-network.json` | `EntHomeAccessCompute` | Compute & Networking (EC2, EKS, ECR, ELB, Route 53) | 7 |
-| `EntHomeAccess.data-storage.json` | `EntHomeAccessData` | Data & Storage (S3, RDS, EFS, ElastiCache, Athena, Glue) | 9 |
+| `EntHomeAccess.data-storage.json` | `EntHomeAccessData` | Data & Storage (S3, RDS, EFS, ElastiCache, Athena, Glue, Backup) | 10 |
 | `EntHomeAccess.identity-security.json` | `EntHomeAccessSecurity` | Identity & Security (IAM, STS, KMS, Secrets Manager, ACM, WAFv2) | 10 |
 | `EntHomeAccess.observability-platform.json` | `EntHomeAccessPlatform` | Observability & Platform (CloudWatch, logs, cost/billing, Service Quotas, SNS, SQS, Bedrock, tagging) | 12 |
 
@@ -509,6 +509,7 @@ This role grants scoped access to the AWS services below. Each statement is cons
 |---------|---------|----------------|
 | ACM | `acm:*` | unscoped (ACM certificates have auto-generated UUIDs) |
 | Athena | `athena:*` | workgroups/datacatalogs prefixed `e???????????????-` |
+| Backup (read) | `backup:ListBackupVaults`, `backup:ListRecoveryPointsByBackupVault` | unscoped, read-only (`ListBackupVaults` has no resource-level permissions; `ent-platform`'s decommission residue check lists recovery points in AWS service-managed `aws/*` vaults, e.g. `aws/efs/automatic-backup-vault`, to exclude self-expiring EFS backups) |
 | BCM Data Exports | `bcm-data-exports:*` | export and table resource types (CUR export reads from AWS-managed `table/COST_AND_USAGE_REPORT`) |
 | Bedrock | `bedrock:*` | inference-profile resource types (UUIDs) + AWS-owned foundation-models (needed by `CreateInferenceProfile`) |
 | Cost and Usage Report | `cur:Describe*`, `cur:Get*`, `cur:PutReportDefinition` | unscoped (BCM Data Exports' `CreateExport` internally calls the legacy `cur:PutReportDefinition` API) |
