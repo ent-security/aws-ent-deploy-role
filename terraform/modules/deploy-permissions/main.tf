@@ -45,8 +45,14 @@ locals {
     {
       Sid      = "BackupReadAccess"
       Effect   = "Allow"
-      Action   = ["backup:ListBackupVaults", "backup:ListRecoveryPointsByBackupVault"]
+      Action   = ["backup:ListBackupVaults"]
       Resource = "*"
+    },
+    {
+      Sid      = "BackupServiceVaultReadAccess"
+      Effect   = "Allow"
+      Action   = ["backup:ListRecoveryPointsByBackupVault"]
+      Resource = "arn:${local.partition}:backup:*:*:backup-vault:aws/*"
     },
     {
       Sid    = "BedrockAccess"
@@ -421,6 +427,7 @@ locals {
     ElastiCacheAccess                = "data-storage"
     AthenaAccess                     = "data-storage"
     BackupReadAccess                 = "data-storage"
+    BackupServiceVaultReadAccess     = "data-storage"
     GlueAccess                       = "data-storage"
 
     # Identity & Security -> EntHomeAccessSecurity (EntHomeAccess.identity-security.json)
