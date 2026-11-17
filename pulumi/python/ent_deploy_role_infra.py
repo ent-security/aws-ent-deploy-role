@@ -118,8 +118,7 @@ for _suffix, _guard in guards.items():
 pulumi.export("roleArn", role.arn)
 pulumi.export("roleName", role.name)
 # Every policy attached to the role: the four functional ones, then the guard when on.
-pulumi.export(
-    "policyArns", [policies[suffix].arn for _, suffix in POLICY_FILES] + [g.arn for g in guards.values()]
-)
+policy_arns = [policies[suffix].arn for _, suffix in POLICY_FILES] + [g.arn for g in guards.values()]
+pulumi.export("policyArns", policy_arns)
 # Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
 pulumi.export("policyArn", policies[COMPAT_POLICY_SUFFIX].arn)

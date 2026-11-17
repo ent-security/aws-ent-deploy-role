@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 import unittest
@@ -40,6 +41,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import ent_deploy_role_infra as infra  # noqa: E402  (import after mocks + config)
 
 
+def attached_to(role_name):
+    """Policy ARNs of every RolePolicyAttachment registered against the named role."""
+    return [
+        a["policyArn"]
+        for a in registered.get("aws:iam/rolePolicyAttachment:RolePolicyAttachment", [])
+        if a["role"] == role_name
+    ]
+
+
 class TestEntDeployRole(unittest.TestCase):
     @pulumi.runtime.test
     def test_four_functional_policy_names(self):
@@ -76,8 +86,7 @@ class TestEntDeployRole(unittest.TestCase):
         def check(args):
             permissions_boundary, *functional_arns = args
             self.assertIsNone(permissions_boundary)
-            attached = [a["policyArn"] for a in registered["aws:iam/rolePolicyAttachment:RolePolicyAttachment"]]
-            self.assertEqual(sorted(attached), sorted(functional_arns))
+            self.assertEqual(sorted(attached_to("HomeProdAssumeAdmin")), sorted(functional_arns))
 
         return pulumi.Output.all(
             infra.role.permissions_boundary,
@@ -117,3 +126,41 @@ class TestEntDeployRole(unittest.TestCase):
     def test_rejects_non_policy_boundary_arn(self):
         with self.assertRaises(ValueError):
             infra.boundary_guard_policy("aws", "arn:aws:iam::123456789012:role/NotAPolicy")
+
+
+BOUNDARY_ARN = "arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary"
+
+
+class TestEntDeployRoleGuardOn(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Config is read when the program loads, so load a second copy with the guard on. A distinct
+        # role name keeps its attachments apart from the guard-off copy's in `registered`.
+        pulumi.runtime.set_config("ent-deploy-role:permissionsBoundaryArn", BOUNDARY_ARN)
+        pulumi.runtime.set_config("ent-deploy-role:roleName", "GuardedRole")
+        spec = importlib.util.spec_from_file_location("ent_deploy_role_infra_guarded", infra.__file__)
+        cls.guarded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.guarded)
+
+    @pulumi.runtime.test
+    def test_guard_created_attached_and_listed(self):
+        guarded = self.guarded
+        self.assertEqual(list(guarded.guards), ["BoundaryGuard"])
+        guard = guarded.guards["BoundaryGuard"]
+        n = len(guarded.policies)
+
+        def check(args):
+            guard_arn, guard_policy, *rest = args
+            functional_arns, policy_arns = rest[:n], rest[n : 2 * n + 1]
+            self.assertIn(BOUNDARY_ARN, guard_policy)
+            self.assertEqual(policy_arns, functional_arns + [guard_arn])
+            self.assertEqual(sorted(attached_to("GuardedRole")), sorted(functional_arns + [guard_arn]))
+
+        return pulumi.Output.all(
+            guard.arn,
+            guard.policy,
+            *[p.arn for p in guarded.policies.values()],
+            *guarded.policy_arns,
+            # Wait for every attachment to register before reading `registered`.
+            *[a.policy_arn for a in guarded.attachments.values()],
+        ).apply(check)

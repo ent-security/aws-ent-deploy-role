@@ -13,6 +13,12 @@ import * as pulumi from '@pulumi/pulumi';
 // up (e.g. every RolePolicyAttachment) rather than only what the module exposes.
 const registered: { type: string; inputs: Record<string, unknown> }[] = [];
 
+// Policy ARNs of every RolePolicyAttachment registered against the named role.
+const attachedTo = (roleName: string): string[] =>
+  registered
+    .filter((r) => r.type === 'aws:iam/rolePolicyAttachment:RolePolicyAttachment' && r.inputs.role === roleName)
+    .map((r) => r.inputs.policyArn as string);
+
 pulumi.runtime.setMocks(
   {
     newResource: (args: pulumi.runtime.MockResourceArgs) => {
@@ -32,11 +38,11 @@ pulumi.runtime.setMocks(
 );
 
 describe('EntDeployRole (Pulumi TS)', () => {
-  let infra: typeof import('../index');
+  let infra: typeof import('../infra');
 
   before(() => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    infra = require('../index');
+    infra = require('../infra');
   });
 
   it('creates the four functional managed policies', (done) => {
@@ -96,9 +102,7 @@ describe('EntDeployRole (Pulumi TS)', () => {
       .apply(([permissionsBoundary, functionalArns]) => {
         try {
           assert.strictEqual(permissionsBoundary, undefined);
-          const attached = registered
-            .filter((r) => r.type === 'aws:iam/rolePolicyAttachment:RolePolicyAttachment')
-            .map((r) => r.inputs.policyArn as string);
+          const attached = attachedTo('HomeProdAssumeAdmin');
           assert.deepStrictEqual([...attached].sort(), [...functionalArns].sort());
           done();
         } catch (e) {
@@ -149,5 +153,56 @@ describe('EntDeployRole (Pulumi TS)', () => {
 
   it('rejects a boundary ARN that is not a policy', () => {
     assert.throws(() => infra.boundaryGuardPolicy('aws', 'arn:aws:iam::123456789012:role/NotAPolicy'), /IAM policy ARN/);
+  });
+
+  it('exports only the stack outputs from the entrypoint', () => {
+    // Every index.ts export becomes a stack output; test hooks (guards, attachments, the renderer)
+    // must stay in infra.ts so the guard-off stack keeps the outputs it had.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    assert.deepStrictEqual(Object.keys(require('../index')).sort(), [
+      'policies',
+      'policyArn',
+      'policyArns',
+      'role',
+      'roleArn',
+    ]);
+  });
+});
+
+describe('EntDeployRole (Pulumi TS) with permissionsBoundaryArn set', () => {
+  const boundaryArn = 'arn:aws:iam::123456789012:policy/CustomerWorkloadBoundary';
+  let guarded: typeof import('../infra');
+
+  before(() => {
+    // Config is read when the program loads, so load a second copy with the guard on. A distinct
+    // role name keeps its attachments apart from the guard-off copy's in `registered`.
+    pulumi.runtime.setConfig('ent-deploy-role:permissionsBoundaryArn', boundaryArn);
+    pulumi.runtime.setConfig('ent-deploy-role:roleName', 'GuardedRole');
+    delete require.cache[require.resolve('../infra')];
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    guarded = require('../infra');
+  });
+
+  it('creates the guard policy, attaches it, and lists it in policyArns', (done) => {
+    assert.strictEqual(guarded.guards.length, 1);
+    pulumi
+      .all([
+        guarded.guards[0].arn,
+        guarded.guards[0].policy,
+        pulumi.all(guarded.policies.map((p) => p.arn)),
+        pulumi.all(guarded.policyArns),
+        // Wait for every attachment to register before reading `registered`.
+        pulumi.all(guarded.attachments.map((a) => a.policyArn)),
+      ])
+      .apply(([guardArn, guardPolicy, functionalArns, policyArns]) => {
+        try {
+          assert.ok(guardPolicy.includes(boundaryArn), 'guard policy should carry the boundary ARN');
+          assert.deepStrictEqual(policyArns, [...functionalArns, guardArn]);
+          assert.deepStrictEqual(attachedTo('GuardedRole').sort(), [...functionalArns, guardArn].sort());
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
   });
 });

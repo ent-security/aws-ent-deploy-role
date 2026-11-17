@@ -19,6 +19,15 @@ type deployed struct {
 	Guards   []*iam.Policy
 }
 
+// policyArns lists every policy attached to the role: the four functional ones, then the guard when on.
+func (d *deployed) policyArns() pulumi.StringArray {
+	arns := make(pulumi.StringArray, 0, len(d.Policies)+len(d.Guards))
+	for _, p := range append(append([]*iam.Policy{}, d.Policies...), d.Guards...) {
+		arns = append(arns, p.Arn)
+	}
+	return arns
+}
+
 const (
 	defaultEntAwsAccountArn = "arn:aws:iam::000000000000:root"
 	defaultRoleName         = "HomeProdAssumeAdmin"
@@ -216,12 +225,7 @@ func main() {
 		ctx.Export("roleArn", result.Role.Arn)
 		ctx.Export("roleName", result.Role.Name)
 
-		// Every policy attached to the role: the four functional ones, then the guard when on.
-		policyArns := make(pulumi.StringArray, 0, len(result.Policies)+len(result.Guards))
-		for _, p := range append(append([]*iam.Policy{}, result.Policies...), result.Guards...) {
-			policyArns = append(policyArns, p.Arn)
-		}
-		ctx.Export("policyArns", policyArns.ToStringArrayOutput())
+		ctx.Export("policyArns", result.policyArns().ToStringArrayOutput())
 
 		// Backward-compat single ARN: EntHomeAccessSecurity. Deprecated -- use policyArns.
 		for i, pf := range policyFiles {
